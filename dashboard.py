@@ -55,49 +55,39 @@ st.html("""
         color: #999 !important;
         opacity: 1 !important;
     }
-    /* Market card - responsive flex layout */
+    /* Market card — responsive */
     .mkt-card {
         background: #111118;
-        border-radius: 10px;
-        padding: 14px 16px;
-        margin-bottom: 8px;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 8px;
         align-items: center;
-        font-size: 14px;
     }
-    .mkt-card.critical { border-left: 4px solid #ef4444; background: rgba(239,68,68,0.06); }
-    .mkt-card.high     { border-left: 4px solid #f97316; background: rgba(249,115,22,0.04); }
-    .mkt-card.medium   { border-left: 3px solid #eab308; }
+    .mkt-card.critical { border-left: 3px solid #ef4444; }
+    .mkt-card.high     { border-left: 3px solid #f97316; }
+    .mkt-card.medium   { border-left: 2px solid #eab308; }
     .mkt-card.default  { border-left: 2px solid #2a2a3a; }
-    .mkt-title { flex: 1 1 100%; font-weight: 600; color: #e8e8e8; font-size: 15px; line-height: 1.3; min-width: 0; }
-    .mkt-sport { font-size: 20px; }
-    .mkt-yes   { color: #22c55e; font-weight: 800; font-size: 18px; min-width: 55px; text-align: center; }
-    .mkt-no    { color: #ef4444; font-weight: 700; font-size: 16px; min-width: 45px; text-align: center; }
-    .mkt-edge  { font-weight: 800; font-size: 16px; min-width: 60px; text-align: center; }
-    .mkt-dir   { font-weight: 700; font-size: 13px; min-width: 75px; text-align: center; }
-    .mkt-conf  { font-size: 11px; min-width: 55px; text-align: center; color: #999; }
-    .mkt-sources { font-size: 11px; color: #888; min-width: 45px; text-align: center; }
-    .mkt-vol   { font-size: 11px; color: #888; min-width: 65px; text-right; text-align: right; }
-    .mkt-trade { margin-left: auto; }
+    .mkt-title { flex: 1 1 100%; font-weight: 600; color: #e8e8e8; font-size: 13px; line-height: 1.3; }
+    .mkt-sport { font-size: 16px; flex: 0 0 auto; }
+    .mkt-yes   { color: #22c55e; font-weight: 800; font-size: 15px; flex: 0 0 auto; }
+    .mkt-no    { color: #ef4444; font-weight: 700; font-size: 14px; flex: 0 0 auto; }
+    .mkt-edge  { font-weight: 800; font-size: 14px; flex: 0 0 auto; }
+    .mkt-dir   { font-weight: 700; font-size: 12px; flex: 0 0 auto; }
+    .mkt-conf  { font-size: 10px; flex: 0 0 auto; color: #888; }
+    .mkt-sources { font-size: 10px; flex: 0 0 auto; color: #666; }
+    .mkt-vol   { font-size: 10px; flex: 0 0 auto; color: #666; }
     .mkt-trade a {
-        display: inline-block;
         background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
-        color: white; padding: 6px 14px; border-radius: 8px;
-        text-decoration: none; font-weight: 700; font-size: 12px;
-        white-space: nowrap;
+        color: white; padding: 5px 10px; border-radius: 6px;
+        text-decoration: none; font-weight: 700; font-size: 11px;
+        flex: 0 0 auto;
     }
-    /* Stats row - scrollable on mobile */
-    .stats-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-    .stats-row > div { flex: 0 0 auto; min-width: 80px; }
-    /* Desktop table layout */
     @media (min-width: 900px) {
         .mkt-card { flex-wrap: nowrap; align-items: center; }
-        .mkt-title { flex: 1 1 auto !important; min-width: 0 !important; }
-        .mkt-sport { min-width: 40px; text-align: center; }
-        .mkt-yes, .mkt-no, .mkt-edge, .mkt-dir, .mkt-conf, .mkt-sources, .mkt-vol { flex: 0 1 auto; }
-        .mkt-trade { margin-left: 0; }
+        .mkt-title { flex: 1 !important; min-width: 0; }
     }
 </style>
 """)
@@ -271,38 +261,44 @@ if st.session_state.get("view_mode") == "markets":
     medium = sum(1 for e in enriched if e.get("confidence") == "MEDIUM")
 
     if not twitter_on:
-        st.info("🐦 Twitter off — add `.twitter_cookies.env` with `AUTH_TOKEN` + `CT0` to enable")
-    
-    # ── Responsive Stats Row ────────────────────────────────────────────────
+        st.info("🐦 Twitter off - add `.twitter_cookies.env` with `AUTH_TOKEN` + `CT0` to enable")
+
+    # ── Compact Stats Bar ──────────────────────────────────────────────────
+    stats_tweets = data.get('tweets_fetched', 0) if twitter_on else "Off"
     st.html(f"""
-    <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch;">
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">Markets</div>
-            <div style="font-size: 18px; font-weight: 700; color: #fff;">{len(enriched)}</div>
+    <div style="
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 6px;
+    ">
+        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#fff;">{len(enriched)}</div>
+            <div style="font-size:9px; color:#666;">Markets</div>
         </div>
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">🔴 Critical</div>
-            <div style="font-size: 18px; font-weight: 700; color: #ef4444;">{critical}</div>
+        <div style="background:rgba(239,68,68,0.12); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#ef4444;">{critical}</div>
+            <div style="font-size:9px; color:#888;">🔴 Crit</div>
         </div>
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">🟠 High</div>
-            <div style="font-size: 18px; font-weight: 700; color: #f97316;">{high}</div>
+        <div style="background:rgba(249,115,22,0.1); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#f97316;">{high}</div>
+            <div style="font-size:9px; color:#888;">🟠 High</div>
         </div>
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">🟡 Medium</div>
-            <div style="font-size: 18px; font-weight: 700; color: #eab308;">{medium}</div>
+        <div style="background:rgba(234,179,8,0.08); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#eab308;">{medium}</div>
+            <div style="font-size:9px; color:#888;">🟡 Med</div>
         </div>
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">🐦 Twitter</div>
-            <div style="font-size: 18px; font-weight: 700; color: #fff;">{data.get('tweets_fetched', 0) if twitter_on else 'Off'}</div>
+        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#fff;">{stats_tweets}</div>
+            <div style="font-size:9px; color:#666;">🐦 Tw</div>
         </div>
-        <div style="flex: 0 0 auto; min-width: 85px; background: #111118; border-radius: 8px; padding: 8px 12px; text-align: center;">
-            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">📰 RSS</div>
-            <div style="font-size: 18px; font-weight: 700; color: #fff;">{data.get('articles_fetched', 0)}</div>
+        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
+            <div style="font-size:16px; font-weight:800; color:#fff;">{data.get('articles_fetched', 0)}</div>
+            <div style="font-size:9px; color:#666;">📰 RSS</div>
         </div>
     </div>
     """)
-    
+
     # ── Markets Cards ───────────────────────────────────────────────────────
     if not enriched:
         st.info("No markets match your filters. Try adjusting.")
@@ -314,13 +310,13 @@ if st.session_state.get("view_mode") == "markets":
             edge = e.get("edge", 0)
             conf = e.get("confidence", "LOW")
             direction = e.get("direction")
-            
+
             # Card class
             if conf == "CRITICAL": card_class = "critical"
             elif conf == "HIGH": card_class = "high"
             elif conf == "MEDIUM": card_class = "medium"
             else: card_class = "default"
-            
+
             # Edge display
             if edge > 0:
                 edge_str = f"+{edge:.1f}%"
@@ -328,9 +324,9 @@ if st.session_state.get("view_mode") == "markets":
                 elif edge > 10: edge_color = "#f97316"
                 else: edge_color = "#eab308"
             else:
-                edge_str = "—"
+                edge_str = "-"
                 edge_color = "#555"
-            
+
             # Direction
             if direction == "YES":
                 dir_str = "✅ YES"
@@ -339,37 +335,33 @@ if st.session_state.get("view_mode") == "markets":
                 dir_str = "❌ NO"
                 dir_color = "#ef4444"
             else:
-                dir_str = "—"
+                dir_str = "-"
                 dir_color = "#888"
-            
+
             # Conf badge
             if conf == "CRITICAL": conf_str = "🔴 CRIT"
             elif conf == "HIGH": conf_str = "🟠 HIGH"
             elif conf == "MEDIUM": conf_str = "🟡 MED"
             else: conf_str = ""
-            
+
             # Sources
             srcs = []
             if (e.get("rss_sentiment") or {}).get("article_count", 0) > 0: srcs.append("📰")
             if (e.get("twitter_sentiment") or {}).get("tweet_count", 0) > 0: srcs.append("🐦")
             if e.get("api_football"): srcs.append("⚽")
-            src_str = " ".join(srcs) if srcs else "—"
-            
+            src_str = " ".join(srcs) if srcs else "-"
+
             # Sport icon
             sport_icon = "⚽" if e.get("sport") == "Football" else "🏀"
-            
+
             # Build card HTML
             st.html(f"""
             <div class="mkt-card {card_class}">
-                <div class="mkt-sport">{sport_icon}</div>
-                <div class="mkt-title">{e.get('title', '')[:60]}</div>
-                <div class="mkt-yes">{yes_pct:.1f}%</div>
-                <div class="mkt-no">{no_pct:.1f}%</div>
+                <div class="mkt-title">{sport_icon} {e.get('title', '')[:55]}</div>
+                <div class="mkt-yes">{yes_pct:.0f}%</div>
                 <div class="mkt-edge" style="color: {edge_color};">{edge_str}</div>
                 <div class="mkt-dir" style="color: {dir_color};">{dir_str}</div>
-                <div class="mkt-conf">{conf_str}</div>
                 <div class="mkt-sources">{src_str}</div>
-                <div class="mkt-vol">{e.get('volume', '$0')}</div>
                 <div class="mkt-trade">
                     <a href="https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK" target="_blank">Trade →</a>
                 </div>
