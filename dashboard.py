@@ -322,7 +322,7 @@ if st.session_state.get("view_mode") == "signals":
                         <span>🏁 {sig.get('expiration', 'N/A')}</span>
                     </div>
                     <div style="font-size: 12px; color: #666;">
-                        <span>🔗 <a href="https://limitless.exchange/market/{sig.get('slug', '')}?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Trade on Limitless →</a></span>
+                        <span>🔗 <a href="https://limitless.exchange/markets/{sig.get('slug', '')}?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Trade on Limitless →</a></span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -449,7 +449,7 @@ elif st.session_state.get("view_mode") == "markets":
                     st.caption("NO")
                 with mc4:
                     if st.button("📓", key=f"addj_mkt_{i}", help="Add to Journal"):
-                        url = f"https://limitless.exchange/market/{slug}"
+                        url = f"https://limitless.exchange/markets/{slug}"
                         st.session_state["prefill_url"] = url
                         st.session_state["prefill_prob"] = yes_pct
                         st.session_state["prefill_question"] = title
@@ -583,7 +583,7 @@ elif st.session_state.get("view_mode") == "journal":
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("**Market URL**")
-                url = st.text_input("URL", value=default_url, placeholder="https://limitless.exchange/market/...", label_visibility="collapsed")
+                url = st.text_input("URL", value=default_url, placeholder="https://limitless.exchange/markets/...", label_visibility="collapsed")
                 st.markdown("**Direction**")
                 direction = st.radio("Dir", options=["YES", "NO"], index=0, horizontal=True, label_visibility="collapsed")
                 st.markdown("**Bet Amount**")

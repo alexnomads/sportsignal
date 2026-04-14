@@ -177,7 +177,7 @@ def _analyze_market(market: dict, articles: list) -> Optional[dict]:
         "id": f"sig_{slug[:20]}_{datetime.now(timezone.utc).strftime('%H%M%S')}",
         "market": market.get("title", "Unknown"),
         "slug": slug,
-        "url": f"https://limitless.exchange/market/{slug}",
+        "url": f"https://limitless.exchange/markets/{slug}",
         "sport": sport,
         "direction": recommended_direction,
         "market_yes_pct": round(market_yes_pct, 1),
