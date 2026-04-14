@@ -164,16 +164,30 @@ st.html("""
     margin-bottom: 24px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
 ">
-    <div style="font-size: 32px;">⚽</div>
-    <div>
-        <div style="font-size: 24px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
-        <div style="font-size: 12px; color: #666; margin-top: 2px;">
-            Sports prediction markets on <span style="color: #4a90d9;">Base</span> via 
-            <span style="color: #4a90d9;">Limitless Exchange</span>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="font-size: 32px;">⚽</div>
+        <div>
+            <div style="font-size: 24px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
+            <div style="font-size: 12px; color: #666; margin-top: 2px;">
+                Sports prediction markets on <span style="color: #4a90d9;">Base</span> via 
+                <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9; text-decoration: none;">Limitless Exchange</a>
+            </div>
         </div>
     </div>
+    <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
+        display: inline-block;
+        background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12px;
+        white-space: nowrap;
+    ">Join Limitless →</a>
 </div>
 """)
 
@@ -308,7 +322,7 @@ if st.session_state.get("view_mode") == "signals":
                         <span>🏁 {sig.get('expiration', 'N/A')}</span>
                     </div>
                     <div style="font-size: 12px; color: #666;">
-                        <span>🔗 <a href="{sig.get('url', '#')}" target="_blank" style="color: #4a90d9;">Trade on Limitless</a></span>
+                        <span>🔗 <a href="https://limitless.exchange/market/{sig.get('slug', '')}?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Trade on Limitless →</a></span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -442,8 +456,8 @@ elif st.session_state.get("view_mode") == "markets":
                         st.session_state["view_mode"] = "journal"
                         st.rerun()
                 
-                # Market link
-                st.markdown(f'<span style="font-size: 11px; color: #4a90d9;">🔗 <a href="https://limitless.exchange/market/{slug}" target="_blank">Trade on Limitless</a></span>', unsafe_allow_html=True)
+                # Market link with referral
+                st.markdown(f'<span style="font-size: 11px; color: #4a90d9;">🔗 <a href="https://limitless.exchange/market/{slug}?r=MOS8U9NKDK" target="_blank">Trade on Limitless →</a></span>', unsafe_allow_html=True)
                 st.divider()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -606,4 +620,41 @@ elif st.session_state.get("view_mode") == "journal":
 
 # Footer
 st.divider()
+
+# Referral banner
+st.html("""
+<div style="
+    background: linear-gradient(135deg, #0f1a2a 0%, #1a1a2e 100%);
+    border: 1px solid #2a4a7a;
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+">
+    <div>
+        <div style="font-size: 14px; font-weight: 600; color: #e8e8e8; margin-bottom: 4px;">
+            🏆 Earn rewards when you trade on Limitless
+        </div>
+        <div style="font-size: 12px; color: #888;">
+            Use our referral link to sign up and start trading sports prediction markets on Base.
+        </div>
+    </div>
+    <div>
+        <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-block;
+            background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+        ">Sign Up + Trade →</a>
+    </div>
+</div>
+""")
+
 st.caption("SportSignal — Powered by Limitless Exchange on Base L2 | Data refreshes on demand")
