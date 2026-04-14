@@ -96,6 +96,7 @@ def generate_signals(sport_filter: str = None, min_edge: float = 0.10, limit: in
                 sm_copy["prices"] = sm.get("prices", [0.5, 0.5])
                 sm_copy["marketType"] = "group_sub"
                 sm_copy["group_title"] = m.get("title", "")
+                sm_copy["group_slug"] = m.get("slug", "")
                 expanded_markets.append(sm_copy)
         else:
             m["marketType"] = m.get("marketType", "standard")
@@ -351,6 +352,8 @@ def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: li
         "trade_type": market.get("tradeType", "unknown"),
         "market_type": market_type_val,
         "market_sub_type": market_type,
+        "group_slug": market.get("group_slug", ""),
+        "group_title": market.get("group_title", ""),
         "related_articles": related_articles[:3],
         "related_tweets": [
             {"source": t.source, "title": t.title, "url": t.url, "is_breaking": t.is_breaking}

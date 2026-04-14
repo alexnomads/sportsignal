@@ -93,6 +93,64 @@ st.html("""
         text-decoration: none; font-weight: 700; font-size: 11px;
         flex: 0 0 auto;
     }
+
+    /* ── Match Row (group sub-markets) ─────────────────────────────── */
+    .match-row {
+        background: #111118;
+        border-radius: 10px;
+        border: 1px solid #1e1e2a;
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+    .match-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #14141c;
+        border-bottom: 1px solid #1e1e2a;
+        font-size: 11px;
+        flex-wrap: wrap;
+    }
+    .match-league { color: #f97316; font-weight: 700; white-space: nowrap; }
+    .match-teams { color: #ccc; font-weight: 600; flex: 1; }
+    .match-meta { color: #555; font-size: 10px; white-space: nowrap; }
+    .match-outcomes {
+        display: flex;
+    }
+    .mkt-outcome {
+        flex: 1;
+        padding: 10px 12px;
+        text-align: center;
+        border-right: 1px solid #1e1e2a;
+    }
+    .mkt-outcome:last-child { border-right: none; }
+    .mkt-outcome-team { color: #aaa; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .mkt-outcome-pct { color: #22c55e; font-size: 18px; font-weight: 900; }
+    .mkt-outcome-edge { font-size: 12px; font-weight: 700; margin-top: 2px; }
+    .mkt-outcome-conf { font-size: 11px; margin-top: 2px; }
+    .mkt-outcome-btn {
+        display: inline-block;
+        margin-top: 6px;
+        background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 10px;
+    }
+
+    @media (max-width: 600px) {
+        .match-outcomes { flex-direction: column; }
+        .mkt-outcome { border-right: none; border-bottom: 1px solid #1e1e2a; text-align: left; display: flex; align-items: center; gap: 8px; padding: 8px 14px; }
+        .mkt-outcome-team { margin-bottom: 0; }
+        .mkt-outcome-pct { font-size: 15px; }
+        .mkt-outcome-edge { margin-top: 0; }
+        .mkt-outcome-conf { display: none; }
+        .mkt-outcome-btn { margin-top: 0; margin-left: auto; }
+    }
+
     @media (min-width: 900px) {
         .mkt-card { flex-wrap: nowrap; align-items: center; }
         .mkt-title { flex: 1 !important; min-width: 0; }
@@ -355,7 +413,162 @@ if st.session_state.get("view_mode") == "markets":
     if not enriched:
         st.info("No markets match your filters. Try adjusting.")
     else:
+        # ── Two-tier display: match rows (group) + cards (standard) ─────────
+
+        # Separate group sub-markets from standard markets
+        from collections import OrderedDict
+        match_groups = OrderedDict()   # group_slug → list of outcomes
+        standard_markets = []          # non-group markets
+
         for e in enriched:
+            if e.get("market_type") == "group_sub" and e.get("group_slug"):
+                match_groups.setdefault(e.get("group_slug"), []).append(e)
+            else:
+                standard_markets.append(e)
+
+        # ── Match Rows (group sub-markets) ──────────────────────────────────
+        if match_groups:
+            for group_slug, outcomes in match_groups.items():
+                if not outcomes:
+                    continue
+
+                # Use first outcome for match-level info
+                parent = outcomes[0]
+                group_title = parent.get("group_title", "")
+                sport_icon = "⚽" if parent.get("sport") == "Football" else "🏀"
+                volume = parent.get("volume", "")
+                expiration = parent.get("expiration", "")[:9]
+                # League from tags
+                tags = parent.get("tags", [])
+                league_tag = next((t for t in tags if any(l in t for l in ["UCL","UEL","UECL","Premier","La Liga","Serie","Bundes","Ligue"])), tags[0] if tags else "")
+                league_icon = "🏆" if "UCL" in league_tag or "UEL" in league_tag else "⚽"
+
+                # Sort outcomes: home, draw, away (heuristic: draw always in middle)
+                def outcome_sort(o):
+                    t = o.get("title","").lower()
+                    if t == "draw": return 1
+                    if parent.get("group_title","").lower().startswith(t): return 0  # home first
+                    return 2  # away
+                outcomes_sorted = sorted(outcomes, key=outcome_sort)
+
+                # Build outcome columns HTML
+                outcome_cols = ""
+                for o in outcomes_sorted:
+                    yes_pct = o.get("yes_pct", 50)
+                    edge = o.get("edge", 0)
+                    conf = o.get("confidence", "LOW")
+                    direction = o.get("direction", "")
+                    trade_url = o.get("trade_url", f"https://limitless.exchange/markets/{o.get('slug','')}?r=MOS8U9NKDK")
+                    title_short = o.get("title","")[:18]
+
+                    edge_color = "#ef4444" if edge > 20 else "#f97316" if edge > 10 else "#eab308"
+                    conf_emoji = "🔴" if conf == "CRITICAL" else "🟠" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else ""
+
+                    outcome_cols += f"""
+                        <div class="mkt-outcome">
+                            <div class="mkt-outcome-team">{title_short}</div>
+                            <div class="mkt-outcome-pct">{yes_pct:.0f}%</div>
+                            <div class="mkt-outcome-edge" style="color:{edge_color};">+{edge:.0f}%</div>
+                            <div class="mkt-outcome-conf">{conf_emoji}</div>
+                            <a class="mkt-outcome-btn" href="{trade_url}" target="_blank">YES →</a>
+                        </div>
+                    """
+
+                # Match row HTML
+                st.html(f"""
+                <div class="match-row">
+                    <div class="match-header">
+                        <span class="match-league">{league_icon} {league_tag}</span>
+                        <span class="match-teams">{group_title[2:50]}</span>
+                        <span class="match-meta">{volume} · {expiration}</span>
+                    </div>
+                    <div class="match-outcomes">
+                        {outcome_cols}
+                    </div>
+                </div>
+                """)
+
+                # Expandable: edge breakdown per outcome
+                with st.expander(f"📊 {group_title[:50]} — Details", expanded=False):
+                    cols = st.columns(3)
+                    for i, o in enumerate(outcomes_sorted):
+                        with cols[i]:
+                            yes_pct = o.get("yes_pct", 50)
+                            edge = o.get("edge", 0)
+                            rss_s = o.get("rss_sentiment") or {}
+                            tw_s = o.get("twitter_sentiment") or {}
+                            api_fb = o.get("api_football")
+                            implied = o.get("implied_pct")
+
+                            lines = [f"**{o.get('title','')}**"]
+                            lines.append(f"YEST {yes_pct:.0f}%")
+                            if implied:
+                                lines.append(f"News: {implied:.0f}%")
+                            if rss_s.get("article_count", 0) > 0:
+                                lines.append(f"📰 {rss_s['article_count']} articles")
+                            if tw_s.get("tweet_count", 0) > 0:
+                                lines.append(f"🐦 {tw_s['tweet_count']} tweets")
+                            if api_fb and api_fb.get("api_implied"):
+                                lines.append(f"⚽ {api_fb['api_implied']:.0f}%")
+                            lines.append(f"**Edge: +{edge:.0f}%**")
+
+                            conf = o.get("confidence","LOW")
+                            conf_color = "red" if conf=="CRITICAL" else "orange" if conf=="HIGH" else "yellow" if conf=="MEDIUM" else "gray"
+                            st.caption(" | ".join(lines))
+
+        # ── Standard Market Cards ─────────────────────────────────────────────
+        if standard_markets:
+            if match_groups:
+                st.html('<div style="height:16px"></div><div style="font-size:11px; color:#555; margin-bottom:4px;">OTHER MARKETS</div>')
+
+            for e in standard_markets:
+                slug = e.get("slug")
+                yes_pct = e.get("yes_pct", 50)
+                edge = e.get("edge", 0)
+                conf = e.get("confidence", "LOW")
+                direction = e.get("direction")
+
+                if conf == "CRITICAL": card_class = "critical"
+                elif conf == "HIGH": card_class = "high"
+                elif conf == "MEDIUM": card_class = "medium"
+                else: card_class = "default"
+
+                if edge > 0:
+                    edge_str = f"+{edge:.1f}%"
+                    edge_color = "#ef4444" if edge > 20 else "#f97316" if edge > 10 else "#eab308"
+                else:
+                    edge_str = "-"; edge_color = "#555"
+
+                if direction == "YES": dir_str, dir_color = "✅ YES", "#22c55e"
+                elif direction == "NO": dir_str, dir_color = "❌ NO", "#ef4444"
+                else: dir_str, dir_color = "-", "#888"
+
+                if conf == "CRITICAL": conf_str = "🔴 CRIT"
+                elif conf == "HIGH": conf_str = "🟠 HIGH"
+                elif conf == "MEDIUM": conf_str = "🟡 MED"
+                else: conf_str = ""
+
+                srcs = []
+                if (e.get("rss_sentiment") or {}).get("article_count", 0) > 0: srcs.append("📰")
+                if (e.get("twitter_sentiment") or {}).get("tweet_count", 0) > 0: srcs.append("🐦")
+                if e.get("api_football"): srcs.append("⚽")
+                src_str = " ".join(srcs) if srcs else "-"
+
+                sport_icon = "⚽" if e.get("sport") == "Football" else "🏀"
+                trade_url = e.get("trade_url", f"https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK")
+
+                st.html(f"""
+                <div class="mkt-card {card_class}">
+                    <div class="mkt-title">{sport_icon} {e.get('title', '')[:55]}</div>
+                    <div class="mkt-yes">{yes_pct:.0f}%</div>
+                    <div class="mkt-edge" style="color: {edge_color};">{edge_str}</div>
+                    <div class="mkt-dir" style="color: {dir_color};">{dir_str}</div>
+                    <div class="mkt-sources">{src_str}</div>
+                    <div class="mkt-trade">
+                        <a href="{trade_url}" target="_blank">Trade →</a>
+                    </div>
+                </div>
+                """)
             slug = e.get("slug")
             yes_pct = e.get("yes_pct", 50)
             no_pct = e.get("no_pct", 50)
