@@ -141,25 +141,50 @@ st.html("""
         font-size: 10px;
     }
 
-    .news-strip {
+    /* ── News Ticker ─────────────────────────────────────────────────── */
+    .news-ticker-wrap {
         background: #0d0d14;
         border-top: 1px solid #1e1e2a;
-        padding: 6px 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
+        padding: 0;
         overflow: hidden;
-    }
-    .news-chip {
-        color: #888;
-        font-size: 10px;
-        text-decoration: none;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
+        position: relative;
     }
-    .news-chip:hover { color: #aaa; text-decoration: underline; }
+    .news-ticker-wrap::before,
+    .news-ticker-wrap::after {
+        content: "";
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 30px;
+        z-index: 2;
+        pointer-events: none;
+    }
+    .news-ticker-wrap::before {
+        left: 0;
+        background: linear-gradient(to right, #0d0d14, transparent);
+    }
+    .news-ticker-wrap::after {
+        right: 0;
+        background: linear-gradient(to left, #0d0d14, transparent);
+    }
+    .news-ticker {
+        display: inline-block;
+        padding: 7px 0;
+        font-size: 11px;
+        color: #888;
+        animation: ticker-scroll 30s linear infinite;
+        white-space: nowrap;
+    }
+    .news-ticker:hover { animation-play-state: paused; }
+    .ticker-item { display: inline; }
+    .ticker-src { color: #f97316; font-weight: 700; }
+    .ticker-link { color: #6ab0ff; text-decoration: none; }
+    .ticker-link:hover { text-decoration: underline; }
+
+    @keyframes ticker-scroll {
+        0%   { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
 
     @media (max-width: 600px) {
         .match-outcomes { flex-direction: column; }
@@ -477,18 +502,6 @@ if st.session_state.get("view_mode") == "markets":
                         if key and key not in all_articles:
                             all_articles[key] = a
 
-                # Build news strip
-                news_strip = ""
-                if all_articles:
-                    article_items = ""
-                    for a in list(all_articles.values())[:3]:
-                        src = a.get("source","RSS")
-                        ago = a.get("published_ago","")
-                        headline = a.get("title","")[:55]
-                        link = a.get("link","")
-                        article_items += f'<a class="news-chip" href="{link}" target="_blank">{src} · {ago} · {headline}…</a>'
-                    news_strip = f'<div class="news-strip">{article_items}</div>'
-
                 # Build outcome columns
                 outcome_cols = ""
                 for o in outcomes_sorted:
@@ -497,10 +510,8 @@ if st.session_state.get("view_mode") == "markets":
                     conf = o.get("confidence", "LOW")
                     trade_url = o.get("trade_url", f"https://limitless.exchange/markets/{o.get('slug','')}?r=MOS8U9NKDK")
                     title_short = o.get("title","")[:18]
-
                     edge_color = "#ef4444" if edge > 20 else "#f97316" if edge > 10 else "#eab308"
                     conf_emoji = "🔴" if conf == "CRITICAL" else "🟠" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else ""
-
                     outcome_cols += f"""
                         <div class="mkt-outcome">
                             <div class="mkt-outcome-team">{title_short}</div>
@@ -516,6 +527,18 @@ if st.session_state.get("view_mode") == "markets":
                                key=lambda c: {"LOW":0,"MEDIUM":1,"HIGH":2,"CRITICAL":3}.get(c,0))
                 border_color = "#ef4444" if best_conf=="CRITICAL" else "#f97316" if best_conf=="HIGH" else "#2a2a3a"
 
+                # Build news ticker
+                news_ticker = ""
+                if all_articles:
+                    ticker_items = " &nbsp;·&nbsp; ".join(
+                        f'<span class="ticker-item"><span class="ticker-src">{a.get("source","RSS")}</span> {a.get("published_ago","")} — {a.get("title","")[:80]}</span>'
+                        for a in list(all_articles.values())[:4]
+                    )
+                    ticker_items += f' &nbsp;·&nbsp; <span class="ticker-item"><span class="ticker-src">Limitless</span> — <a href="https://limitless.exchange/markets/{group_slug}?r=MOS8U9NKDK" target="_blank" class="ticker-link">Trade {group_title[2:40]} on Limitless →</a></span>'
+                    # Duplicate for seamless loop
+                    ticker_full = ticker_items + ' &nbsp;&nbsp;&nbsp; ' + ticker_items
+                    news_ticker = f'<div class="news-ticker-wrap"><div class="news-ticker">{ticker_full}</div></div>'
+
                 st.html(f"""
                 <div class="match-row" style="border-left: 3px solid {border_color};">
                     <div class="match-header">
@@ -526,7 +549,7 @@ if st.session_state.get("view_mode") == "markets":
                     <div class="match-outcomes">
                         {outcome_cols}
                     </div>
-                    {news_strip}
+                    {news_ticker}
                 </div>
                 """)
 
