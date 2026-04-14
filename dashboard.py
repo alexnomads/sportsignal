@@ -139,6 +139,35 @@ st.html("""
         text-decoration: none;
         font-weight: 700;
         font-size: 10px;
+        transition: transform 0.15s ease;
+    }
+    .mkt-outcome-btn:hover {
+        transform: scale(1.08) rotate(-2deg);
+        box-shadow: 0 4px 15px rgba(74, 144, 217, 0.4);
+    }
+    
+    /* Outcome cell tilt on hover - indicates the stat direction */
+    .mkt-outcome-pct {
+        transition: transform 0.2s ease, text-shadow 0.2s ease;
+    }
+    .mkt-outcome-pct:hover {
+        transform: rotate(-3deg) scale(1.1);
+        text-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
+        cursor: pointer;
+    }
+    .mkt-outcome-edge {
+        transition: transform 0.2s ease;
+    }
+    .mkt-outcome-edge:hover {
+        transform: rotate(3deg) scale(1.1);
+        cursor: pointer;
+    }
+    .mkt-outcome-conf {
+        transition: transform 0.2s ease;
+    }
+    .mkt-outcome-conf:hover {
+        transform: rotate(-2deg) scale(1.15);
+        cursor: pointer;
     }
 
     /* ── News Ticker ─────────────────────────────────────────────────── */
@@ -200,8 +229,31 @@ st.html("""
         letter-spacing: 0.08em;
         padding: 3px 4px;
         text-transform: uppercase;
+        transition: all 0.2s ease;
     }
     .match-col-headers span:last-child { text-align: center; }
+    
+    /* Hover tilt effect - headers indicate the stat below */
+    .match-col-headers span:nth-child(2) { /* YES % */
+        transform-origin: center bottom;
+    }
+    .match-col-headers span:nth-child(3) { /* EDGE */
+        transform-origin: center bottom;
+    }
+    .match-col-headers span:nth-child(4) { /* DIRECTION */
+        transform-origin: center bottom;
+    }
+    .match-col-headers span:hover {
+        color: #ffffff;
+        transform: rotate(-3deg) scale(1.15);
+        text-shadow: 0 0 12px rgba(150, 180, 255, 0.5);
+        cursor: pointer;
+    }
+    /* Tilt direction based on column position */
+    .match-col-headers span:nth-child(2):hover { transform: rotate(-4deg) scale(1.15); }
+    .match-col-headers span:nth-child(3):hover { transform: rotate(3deg) scale(1.15); }
+    .match-col-headers span:nth-child(4):hover { transform: rotate(-2deg) scale(1.15); }
+    .match-col-headers span:last-child:hover { transform: rotate(2deg) scale(1.15); }
 
     @media (max-width: 600px) {
         .match-outcomes { flex-direction: column; }
