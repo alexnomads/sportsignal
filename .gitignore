@@ -4,3 +4,4 @@ __pycache__/
 *.json
 !requirements.txt
 venv/
+.twitter_cookies.env
