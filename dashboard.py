@@ -37,8 +37,10 @@ st.html("""
 <style>
     .stApp { background-color: #0a0a0f; color: #e8e8e8; }
     [data-testid="stSidebar"] { background-color: #111118; border-right: 1px solid #222230; }
-    .stMetric { background: #111118; border-radius: 8px; padding: 8px; }
-    div[data-testid="stMetricValue"] { font-size: 1.4rem; }
+    .stMetric { background: #111118; border-radius: 8px; padding: 10px 14px; }
+    div[data-testid="stMetricValue"] { font-size: 1.4rem; color: #ffffff; }
+    div[data-testid="stMetricLabel"] { color: #999999; font-size: 0.75rem; opacity: 1 !important; }
+    div[data-testid="stMetricLabel"] span { color: #999999; opacity: 1 !important; }
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] { background-color: #111118; border-radius: 8px 8px 0 0; padding: 8px 16px; }
     .stTabs [aria-selected="true"] { background-color: #1a1a28; }
@@ -48,6 +50,12 @@ st.html("""
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    /* Fix metric labels */
+    section[data-testid="stHorizontalBlock"] .stMetric label,
+    section[data-testid="stHorizontalBlock"] div[class*="Metric"] label {
+        color: #999 !important;
+        opacity: 1 !important;
+    }
 </style>
 """)
 
@@ -228,7 +236,7 @@ if st.session_state.get("view_mode") == "markets":
     with s6: st.metric("📰 RSS", data.get("articles_fetched", 0))
     
     if not twitter_on:
-        st.warning("🐦 Twitter off — signals limited to RSS only")
+        st.info("🐦 Twitter off — add `.twitter_cookies.env` with `AUTH_TOKEN` + `CT0` to enable")
     
     st.divider()
     
@@ -239,7 +247,7 @@ if st.session_state.get("view_mode") == "markets":
         grid-template-columns: 40px 1fr 60px 60px 70px 90px 70px 60px 70px;
         gap: 10px;
         padding: 8px 16px;
-        color: #555;
+        color: #999;
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
@@ -340,16 +348,16 @@ if st.session_state.get("view_mode") == "markets":
                 font-size: 13px;
             ">
                 <div style="text-align:center; font-size: 16px;">{sport_icon}</div>
-                <div style="font-weight: 500; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div style="font-weight: 500; color: #e8e8e8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {e.get('title', '')[:55]}
                 </div>
                 <div style="color: #22c55e; font-weight: 700; text-align:right;">{yes_pct:.1f}%</div>
                 <div style="color: #ef4444; font-weight: 700; text-align:right;">{no_pct:.1f}%</div>
                 <div style="color: {edge_color}; font-weight: 700; text-align:center;">{edge_str}</div>
                 <div style="color: {dir_color}; font-weight: 600; font-size: 12px; text-align:center;">{dir_str}</div>
-                <div style="color: #888; font-size: 11px; text-align:center;">{conf_str}</div>
-                <div style="color: #888; font-size: 11px; text-align:center;">{src_str}</div>
-                <div style="color: #888; font-size: 11px; text-align:right;">{e.get('volume', '$0')}</div>
+                <div style="color: #aaa; font-size: 11px; text-align:center;">{conf_str}</div>
+                <div style="color: #aaa; font-size: 11px; text-align:center;">{src_str}</div>
+                <div style="color: #aaa; font-size: 11px; text-align:right;">{e.get('volume', '$0')}</div>
             </div>
             """)
             
