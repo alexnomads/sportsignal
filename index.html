@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportSignal — Sports Prediction Market Intelligence</title>
+    <meta name="description" content="Find edge in sports prediction markets before the odds move. Real-time sentiment analysis from Twitter, RSS, and API-Football.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080810;
+            --bg-card: #0f0f1a;
+            --bg-card-hover: #14141f;
+            --border: #1e1e30;
+            --text: #e8e8f0;
+            --text-muted: #7a7a8c;
+            --text-dim: #4a4a5c;
+            --green: #22c55e;
+            --green-glow: rgba(34, 197, 94, 0.15);
+            --green-mid: #16a34a;
+            --orange: #f97316;
+            --orange-glow: rgba(249, 115, 22, 0.15);
+            --blue: #4a90d9;
+            --red: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        /* ── Nav ── */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 48px;
+            border-bottom: 1px solid var(--border);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .logo-icon {
+            font-size: 28px;
+        }
+        .logo span.green { color: var(--green); }
+        .logo span.orange { color: var(--orange); }
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
+            color: #000;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--green-glow);
+        }
+        .btn-secondary {
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+            background: var(--bg-card);
+        }
+
+        /* ── Hero ── */
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 48px 60px;
+            text-align: center;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .hero-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+        .hero h1 {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 900;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+        }
+        .hero h1 .green { color: var(--green); }
+        .hero h1 .orange { color: var(--orange); }
+        .hero-sub {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* ── Dashboard Preview ── */
+        .dashboard-preview {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 48px 80px;
+        }
+        .dashboard-frame {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,197,94,0.05);
+        }
+        .dashboard-bar {
+            background: #0a0a12;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dot-red { width: 12px; height: 12px; background: #ff5f57; border-radius: 50%; }
+        .dot-yellow { width: 12px; height: 12px; background: #ffbd2e; border-radius: 50%; }
+        .dot-green { width: 12px; height: 12px; background: #28c840; border-radius: 50%; }
+        .dashboard-url {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        .dashboard-content {
+            padding: 24px;
+            background: #0a0a0f;
+            min-height: 300px;
+        }
+        /* Mock dashboard rows */
+        .mock-stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .mock-stat {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 10px 16px;
+            min-width: 80px;
+            text-align: center;
+        }
+        .mock-stat-n { font-size: 22px; font-weight: 800; }
+        .mock-stat-l { font-size: 10px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mock-row {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+        .mock-row.critical { border-left: 3px solid var(--red); }
+        .mock-row.high { border-left: 3px solid var(--orange); }
+        .mock-row.medium { border-left: 2px solid #eab308; }
+        .mock-row span { color: var(--text-muted); }
+        .mock-row .mkt-title { flex: 1; font-weight: 600; color: var(--text); }
+        .mock-row .mkt-yes { color: var(--green); font-weight: 700; }
+        .mock-row .mkt-edge { color: var(--green); font-weight: 800; }
+        .mock-row .mkt-dir { font-weight: 600; }
+        .mock-row .mkt-conf { font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+        .mock-row .mkt-conf.crit { background: rgba(239,68,68,0.15); color: var(--red); }
+        .mock-row .mkt-conf.high { background: rgba(249,115,22,0.15); color: var(--orange); }
+        .mock-row .mkt-conf.med { background: rgba(234,179,8,0.12); color: #eab308; }
+        .mock-row .trade-btn {
+            background: var(--blue);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        /* ── Section ── */
+        .section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 48px;
+        }
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+        .section-title .green { color: var(--green); }
+        .section-title .orange { color: var(--orange); }
+        .section-sub {
+            font-size: 17px;
+            color: var(--text-muted);
+            max-width: 520px;
+            line-height: 1.7;
+            margin-bottom: 48px;
+        }
+
+        /* ── How It Works ── */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .step:hover {
+            border-color: var(--text-dim);
+            transform: translateY(-2px);
+        }
+        .step-num {
+            font-size: 42px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 16px;
+            line-height: 1;
+        }
+        .step-num.green { color: var(--green); opacity: 0.3; }
+        .step-num.orange { color: var(--orange); opacity: 0.3; }
+        .step h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .step p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ── Sources ── */
+        .sources-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+        .source-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.2s;
+        }
+        .source-card:hover { border-color: var(--border); background: var(--bg-card-hover); }
+        .source-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .source-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .source-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+        .source-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .source-tag {
+            background: rgba(255,255,255,0.05);
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+        }
+        .source-card.green-border { border-top: 3px solid var(--green); }
+        .source-card.orange-border { border-top: 3px solid var(--orange); }
+
+        /* ── Edge Explainer ── */
+        .edge-demo {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 32px;
+            align-items: center;
+        }
+        .edge-side {
+            text-align: center;
+        }
+        .edge-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+        .edge-value {
+            font-size: 56px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .edge-value.green { color: var(--green); }
+        .edge-value.orange { color: var(--orange); }
+        .edge-sub { font-size: 13px; color: var(--text-muted); }
+        .edge-arrow {
+            font-size: 40px;
+            color: var(--text-dim);
+        }
+        .edge-result {
+            background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(249,115,22,0.15) 100%);
+            border: 1px solid rgba(34,197,94,0.3);
+            border-radius: 16px;
+            padding: 28px;
+            text-align: center;
+        }
+        .edge-result .label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--green);
+            margin-bottom: 8px;
+        }
+        .edge-result .value {
+            font-size: 48px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .edge-result .sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ── Accounts ── */
+        .accounts-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 8px 0 16px;
+            scrollbar-width: none;
+        }
+        .accounts-scroll::-webkit-scrollbar { display: none; }
+        .account-chip {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .account-chip .weight {
+            background: rgba(34,197,94,0.15);
+            color: var(--green);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* ── CTA ── */
+        .cta-section {
+            background: linear-gradient(180deg, var(--bg) 0%, #0a0f12 100%);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        .cta-box {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 80px 48px;
+        }
+        .cta-box h2 {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            margin-bottom: 16px;
+            line-height: 1.1;
+        }
+        .cta-box h2 .green { color: var(--green); }
+        .cta-box h2 .orange { color: var(--orange); }
+        .cta-box p {
+            font-size: 17px;
+            color: var(--text-muted);
+            margin-bottom: 36px;
+            line-height: 1.6;
+        }
+        .cta-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .cta-note {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 32px 48px;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        footer .left {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        footer .right {
+            display: flex;
+            gap: 24px;
+        }
+        footer .right a {
+            font-size: 13px;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+        footer .right a:hover { color: var(--text); }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            nav { padding: 16px 24px; }
+            .nav-links .hide-mobile { display: none; }
+            .hero { padding: 48px 24px 40px; }
+            .section { padding: 48px 24px; }
+            .dashboard-preview { padding: 0 24px 60px; }
+            .steps { grid-template-columns: 1fr; }
+            .sources-grid { grid-template-columns: 1fr; }
+            .edge-demo {
+                grid-template-columns: 1fr;
+                padding: 28px;
+            }
+            .edge-arrow { transform: rotate(90deg); }
+            .cta-box { padding: 48px 24px; }
+            footer { padding: 24px; flex-direction: column; text-align: center; }
+        }
+
+        /* ── Scroll animations ── */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+    <div class="logo">
+        <span class="logo-icon">⚽</span>
+        Sport<span class="green">Signal</span><span class="orange">.</span>
+    </div>
+    <div class="nav-links hide-mobile">
+        <a href="#how">How it works</a>
+        <a href="#sources">Data sources</a>
+        <a href="#edge">Edge formula</a>
+        <a href="http://187.124.39.207:8502" target="_blank">Dashboard →</a>
+    </div>
+    <a href="http://187.124.39.207:8502" target="_blank" class="btn-primary">
+        Open App →
+    </a>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-badge">
+        <span class="dot"></span>
+        Live on Limitless Exchange — Base L2
+    </div>
+    <h1>
+        See what others<br>
+        <span class="green">miss</span> <span class="orange">before</span><br>
+        the odds move
+    </h1>
+    <p class="hero-sub">
+        SportSignal monitors live sports prediction markets and cross-references them against Twitter, RSS feeds, and API-Football — generating ranked signals where the market is wrong.
+    </p>
+    <div class="hero-actions">
+        <a href="http://187.124.39.207:8502" target="_blank" class="btn-primary">
+            🚀 Open Dashboard Free
+        </a>
+        <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" class="btn-secondary">
+            Trade on Limitless →
+        </a>
+    </div>
+</section>
+
+<!-- Dashboard Preview -->
+<div class="dashboard-preview fade-in">
+    <div class="dashboard-frame">
+        <div class="dashboard-bar">
+            <div class="dot-red"></div>
+            <div class="dot-yellow"></div>
+            <div class="dot-green"></div>
+            <div class="dashboard-url">187.124.39.207:8502</div>
+        </div>
+        <div class="dashboard-content">
+            <div class="mock-stats">
+                <div class="mock-stat"><div class="mock-stat-n" style="color: var(--text)">25</div><div class="mock-stat-l">Markets</div></div>
+                <div class="mock-stat"><div class="mock-stat-n" style="color: var(--red)">4</div><div class="mock-stat-l">Critical</div></div>
+                <div class="mock-stat"><div class="mock-stat-n" style="color: var(--orange)">8</div><div class="mock-stat-l">High</div></div>
+                <div class="mock-stat"><div class="mock-stat-n" style="color: #eab308">5</div><div class="mock-stat-l">Medium</div></div>
+                <div class="mock-stat"><div class="mock-stat-n" style="color: var(--text)">42</div><div class="mock-stat-l">🐦 Tw</div></div>
+                <div class="mock-stat"><div class="mock-stat-n" style="color: var(--text)">147</div><div class="mock-stat-l">📰 RSS</div></div>
+            </div>
+            <div class="mock-row critical">
+                <span>⚽</span>
+                <span class="mkt-title">Bayern München vs Real Madrid — Over 2.5 goals?</span>
+                <span class="mkt-yes">67.4%</span>
+                <span class="mkt-edge">+21.3%</span>
+                <span class="mkt-dir" style="color: var(--green)">✅ YES</span>
+                <span class="mkt-conf crit">🔴 CRITICAL</span>
+                <span style="color: var(--text-dim); font-size:11px;">🐦📰⚽</span>
+                <span class="trade-btn">Trade →</span>
+            </div>
+            <div class="mock-row high">
+                <span>⚽</span>
+                <span class="mkt-title">Liverpool vs PSG — Both teams to score?</span>
+                <span class="mkt-yes">58.1%</span>
+                <span class="mkt-edge">+15.7%</span>
+                <span class="mkt-dir" style="color: var(--green)">✅ YES</span>
+                <span class="mkt-conf high">🟠 HIGH</span>
+                <span style="color: var(--text-dim); font-size:11px;">🐦📰</span>
+                <span class="trade-btn">Trade →</span>
+            </div>
+            <div class="mock-row high">
+                <span>⚽</span>
+                <span class="mkt-title">Arsenal vs Sporting CP — Arsenal to qualify?</span>
+                <span class="mkt-yes">44.2%</span>
+                <span class="mkt-edge">+18.2%</span>
+                <span class="mkt-dir" style="color: var(--green)">✅ YES</span>
+                <span class="mkt-conf high">🟠 HIGH</span>
+                <span style="color: var(--text-dim); font-size:11px;">🐦⚽</span>
+                <span class="trade-btn">Trade →</span>
+            </div>
+            <div class="mock-row medium">
+                <span>🏀</span>
+                <span class="mkt-title">Lakers vs Celtics — Total points over 218?</span>
+                <span class="mkt-yes">51.3%</span>
+                <span class="mkt-edge">+9.4%</span>
+                <span class="mkt-dir" style="color: var(--green)">✅ YES</span>
+                <span class="mkt-conf med">🟡 MEDIUM</span>
+                <span style="color: var(--text-dim); font-size:11px;">📰</span>
+                <span class="trade-btn">Trade →</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works -->
+<section class="section" id="how">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">
+        From breaking news to<br>
+        <span class="green">position on-chain</span> <span class="orange">in minutes</span>
+    </h2>
+    <p class="section-sub">
+        Most bettors read the news. Smart bettors read the news <em>before</em> the odds adjust.
+    </p>
+
+    <div class="steps">
+        <div class="step fade-in">
+            <div class="step-num green">01</div>
+            <h3>Scan every market</h3>
+            <p>Pulls all live sports prediction markets from Limitless Exchange — Football and Basketball on Base L2 — updated on demand.</p>
+        </div>
+        <div class="step fade-in">
+            <div class="step-num orange">02</div>
+            <h3>Read the signal noise</h3>
+            <p>Aggregates Twitter scoops, RSS articles, and API-Football form data. Scores sentiment by source reliability. Filters out the noise.</p>
+        </div>
+        <div class="step fade-in">
+            <div class="step-num green">03</div>
+            <h3>Calculate the edge</h3>
+            <p>Compares implied probability from data vs. market price. Fires a signal when the gap crosses the threshold. Ranked by edge size.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Edge Explainer -->
+<section class="section" id="edge">
+    <div class="section-label">The edge formula</div>
+    <h2 class="section-title">
+        Where the <span class="orange">crowd is wrong</span> —<br>
+        that's where you <span class="green">profit</span>
+    </h2>
+    <p class="section-sub">
+        Prediction markets are efficient at 50/50. But sports news moves faster than odds.
+    </p>
+
+    <div class="edge-demo fade-in">
+        <div class="edge-side">
+            <div class="edge-label">Market Price</div>
+            <div class="edge-value orange">51%</div>
+            <div class="edge-sub">Limitless YES% price</div>
+        </div>
+        <div class="edge-arrow">→</div>
+        <div class="edge-side">
+            <div class="edge-label">Data Implied</div>
+            <div class="edge-value green">72%</div>
+            <div class="edge-sub">Twitter + RSS + Form</div>
+        </div>
+        <div class="edge-arrow">=</div>
+        <div class="edge-result">
+            <div class="label">Your Edge</div>
+            <div class="value">+21%</div>
+            <div class="sub">🔴 CRITICAL signal<br>Bet YES on Limitless</div>
+        </div>
+    </div>
+</section>
+
+<!-- Data Sources -->
+<section class="section" id="sources">
+    <div class="section-label">Data sources</div>
+    <h2 class="section-title">
+        Three signals.<br>
+        <span class="green">One edge.</span>
+    </h2>
+    <p class="section-sub">
+        Most tools give you one data source. SportSignal fuses three — and weights them by reliability.
+    </p>
+
+    <div class="sources-grid">
+        <div class="source-card green-border fade-in">
+            <div class="source-icon">🐦</div>
+            <h3>Twitter Intelligence</h3>
+            <p>Monitors 20 curated football accounts in real-time. Transfer scoops from Fabrizio Romano. Form analysis from OptaJoe. Team announcements from club accounts.</p>
+            <div class="source-tags">
+                <span class="source-tag">FabrizioRomano 2.0x</span>
+                <span class="source-tag">OptaJoe 1.8x</span>
+                <span class="source-tag">David_Ornstein 2.0x</span>
+                <span class="source-tag">DiMarzio 1.8x</span>
+                <span class="source-tag">Breaking news 🔥</span>
+                <span class="source-tag">Transfer alerts 📋</span>
+                <span class="source-tag">Injury updates 🏥</span>
+            </div>
+        </div>
+        <div class="source-card orange-border fade-in">
+            <div class="source-icon">📰</div>
+            <h3>RSS News Aggregation</h3>
+            <p>9 curated feeds — BBC Sport, ESPN, Sky Sports, The Athletic, Transfermarkt (IT/UK/ES) — for live match coverage, transfer updates, and injury reports.</p>
+            <div class="source-tags">
+                <span class="source-tag">BBC Sport</span>
+                <span class="source-tag">ESPN FC</span>
+                <span class="source-tag">Sky Sports</span>
+                <span class="source-tag">The Athletic</span>
+                <span class="source-tag">Transfermarkt IT/UK/ES</span>
+                <span class="source-tag">NBA.com</span>
+            </div>
+        </div>
+        <div class="source-card green-border fade-in">
+            <div class="source-icon">⚽</div>
+            <h3>API-Football</h3>
+            <p>Team form scores (last 5-10 matches), upcoming fixtures, head-to-head records, and injury data — the numbers bookmakers use.</p>
+            <div class="source-tags">
+                <span class="source-tag">Form scores 0-100</span>
+                <span class="source-tag">Fixtures 3 days</span>
+                <span class="source-tag">H2H history</span>
+                <span class="source-tag">Injury lists</span>
+            </div>
+        </div>
+        <div class="source-card orange-border fade-in">
+            <div class="source-icon">📊</div>
+            <h3>Limitless Markets</h3>
+            <p>Live order books from Limitless Exchange on Base L2. No API keys needed — public endpoints. Zero gas fees for signing up.</p>
+            <div class="source-tags">
+                <span class="source-tag">Base L2</span>
+                <span class="source-tag">No KYC</span>
+                <span class="source-tag">Sports markets</span>
+                <span class="source-tag">Football + NBA</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Twitter Accounts -->
+<section class="section">
+    <div class="section-label">Twitter accounts monitored</div>
+    <h2 class="section-title">
+        20 accounts.<br>
+        <span class="orange">Weighted by reliability.</span>
+    </h2>
+    <p class="section-sub">
+        Not all sources are equal. Romano's "here we go" moves markets. A random tipster doesn't. We weight accordingly.
+    </p>
+
+    <div class="accounts-scroll">
+        <div class="account-chip">@FabrizioRomano <span class="weight">2.0x</span></div>
+        <div class="account-chip">@David_Ornstein <span class="weight">2.0x</span></div>
+        <div class="account-chip">@DiMarzio <span class="weight">1.8x</span></div>
+        <div class="account-chip">@GuillemBalague <span class="weight">1.5x</span></div>
+        <div class="account-chip">@OptaJoe <span class="weight">1.8x</span></div>
+        <div class="account-chip">@FootRankings <span class="weight">1.5x</span></div>
+        <div class="account-chip">@AndyRobsonTips <span class="weight">1.5x</span></div>
+        <div class="account-chip">@JamesMurphyTips <span class="weight">1.5x</span></div>
+        <div class="account-chip">@pinchbet <span class="weight">1.3x</span></div>
+        <div class="account-chip">@premierleague <span class="weight">1.3x</span></div>
+        <div class="account-chip">@LaLiga <span class="weight">1.2x</span></div>
+        <div class="account-chip">@RealMadrid <span class="weight">1.2x</span></div>
+        <div class="account-chip">@FCBarcelona <span class="weight">1.2x</span></div>
+        <div class="account-chip">@ManUtd <span class="weight">1.2x</span></div>
+        <div class="account-chip">@FCBayern <span class="weight">1.2x</span></div>
+        <div class="account-chip">@LFC <span class="weight">1.2x</span></div>
+        <div class="account-chip">@PSG <span class="weight">1.1x</span></div>
+        <div class="account-chip">@SerieA <span class="weight">1.2x</span></div>
+        <div class="account-chip">@Inter <span class="weight">1.1x</span></div>
+        <div class="account-chip">@meatmansoccer <span class="weight">1.3x</span></div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <div class="cta-box">
+        <h2>
+            <span class="green">Edge</span> is not luck.<br>
+            It's <span class="orange">information</span> before the odds move.
+        </h2>
+        <p>
+            The difference between a profitable bettor and a losing one is not luck — it's reading the signal before the crowd does.
+            <br><br>
+            SportSignal gives you that signal.
+        </p>
+        <div class="cta-actions">
+            <a href="http://187.124.39.207:8502" target="_blank" class="btn-primary" style="padding: 14px 28px; font-size: 16px;">
+                🚀 Open SportSignal Free
+            </a>
+            <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" class="btn-secondary" style="padding: 14px 28px; font-size: 15px;">
+                Trade on Limitless →
+            </a>
+        </div>
+        <p class="cta-note">No signup required · Zero gas fees on Base · Paper trading journal included</p>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="left">
+        ⚽ SportSignal · Built on <a href="https://limitless.exchange/?r=MOS8U9NKDK" style="color: var(--text-muted);">Limitless Exchange</a> · Base L2
+    </div>
+    <div class="right">
+        <a href="http://187.124.39.207:8502" target="_blank">Dashboard</a>
+        <a href="https://github.com/alexnomads/sportsignal" target="_blank">GitHub</a>
+        <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank">Limitless</a>
+    </div>
+</footer>
+
+<!-- Scroll animation -->
+<script>
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                e.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
