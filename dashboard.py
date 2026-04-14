@@ -146,28 +146,136 @@ st.html("""
         box-shadow: 0 4px 15px rgba(74, 144, 217, 0.4);
     }
     
-    /* Outcome cell tilt on hover - indicates the stat direction */
+    /* Outcome cell hover effects - tilt + tooltip */
     .mkt-outcome-pct {
-        transition: transform 0.2s ease, text-shadow 0.2s ease;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), text-shadow 0.2s ease;
+        position: relative;
+        cursor: help;
     }
     .mkt-outcome-pct:hover {
         transform: rotate(-3deg) scale(1.1);
         text-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
-        cursor: pointer;
     }
+    .mkt-outcome-pct::after {
+        content: "Model probability %";
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 5px;
+        padding: 5px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        color: #ccc;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 50;
+    }
+    .mkt-outcome-pct:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+    
     .mkt-outcome-edge {
-        transition: transform 0.2s ease;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        cursor: help;
     }
     .mkt-outcome-edge:hover {
         transform: rotate(3deg) scale(1.1);
-        cursor: pointer;
     }
+    .mkt-outcome-edge::after {
+        content: "Edge vs market odds";
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 5px;
+        padding: 5px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        color: #ccc;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 50;
+    }
+    .mkt-outcome-edge:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+    
     .mkt-outcome-conf {
-        transition: transform 0.2s ease;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        cursor: help;
     }
     .mkt-outcome-conf:hover {
         transform: rotate(-2deg) scale(1.15);
-        cursor: pointer;
+    }
+    .mkt-outcome-conf::after {
+        content: "Confidence level";
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 5px;
+        padding: 5px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        color: #ccc;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 50;
+    }
+    .mkt-outcome-conf:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+    
+    /* TEAM cell hover */
+    .mkt-outcome-team {
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        cursor: help;
+    }
+    .mkt-outcome-team:hover {
+        transform: rotate(2deg) scale(1.05);
+        color: #fff;
+    }
+    .mkt-outcome-team::after {
+        content: "Team / Outcome";
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 5px;
+        padding: 5px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        color: #ccc;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 50;
+    }
+    .mkt-outcome-team:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
     }
 
     /* ── News Ticker ─────────────────────────────────────────────────── */
@@ -229,31 +337,58 @@ st.html("""
         letter-spacing: 0.08em;
         padding: 3px 4px;
         text-transform: uppercase;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        cursor: help;
     }
     .match-col-headers span:last-child { text-align: center; }
     
-    /* Hover tilt effect - headers indicate the stat below */
-    .match-col-headers span:nth-child(2) { /* YES % */
-        transform-origin: center bottom;
+    /* Tooltip for each header */
+    .match-col-headers span::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #ccc;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 100;
     }
-    .match-col-headers span:nth-child(3) { /* EDGE */
-        transform-origin: center bottom;
+    .match-col-headers span:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
     }
-    .match-col-headers span:nth-child(4) { /* DIRECTION */
-        transform-origin: center bottom;
+    
+    /* Tilt direction indicates stat category */
+    .match-col-headers span[data-tooltip="Team / Outcome"]:hover { 
+        transform: rotate(-4deg) scale(1.1); 
+        color: #888;
     }
-    .match-col-headers span:hover {
-        color: #ffffff;
-        transform: rotate(-3deg) scale(1.15);
-        text-shadow: 0 0 12px rgba(150, 180, 255, 0.5);
-        cursor: pointer;
+    .match-col-headers span[data-tooltip="Model probability %"]:hover { 
+        transform: rotate(2deg) scale(1.1); 
+        color: #22c55e;
     }
-    /* Tilt direction based on column position */
-    .match-col-headers span:nth-child(2):hover { transform: rotate(-4deg) scale(1.15); }
-    .match-col-headers span:nth-child(3):hover { transform: rotate(3deg) scale(1.15); }
-    .match-col-headers span:nth-child(4):hover { transform: rotate(-2deg) scale(1.15); }
-    .match-col-headers span:last-child:hover { transform: rotate(2deg) scale(1.15); }
+    .match-col-headers span[data-tooltip="Edge vs market odds"]:hover { 
+        transform: rotate(-3deg) scale(1.1); 
+        color: #f97316;
+    }
+    .match-col-headers span[data-tooltip="Signal direction"]:hover { 
+        transform: rotate(4deg) scale(1.1); 
+        color: #60a5fa;
+    }
+    .match-col-headers span[data-tooltip="Trade on exchange"]:hover { 
+        transform: rotate(-2deg) scale(1.1); 
+        color: #4a90d9;
+    }
 
     @media (max-width: 600px) {
         .match-outcomes { flex-direction: column; }
@@ -616,7 +751,11 @@ if st.session_state.get("view_mode") == "markets":
                         <span class="match-meta">💰 {volume} &nbsp;📅 {expiration[:9]}</span>
                     </div>
                     <div class="match-col-headers">
-                        <span>TEAM</span><span>YES %</span><span>EDGE</span><span>DIRECTION</span><span>ACTION</span>
+                        <span data-tooltip="Team / Outcome">TEAM</span>
+                        <span data-tooltip="Model probability %">YES %</span>
+                        <span data-tooltip="Edge vs market odds">EDGE</span>
+                        <span data-tooltip="Signal direction">DIRECTION</span>
+                        <span data-tooltip="Trade on exchange">ACTION</span>
                     </div>
                     <div class="match-outcomes">
                         {outcome_cols}
