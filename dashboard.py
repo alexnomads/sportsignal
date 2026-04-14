@@ -1,5 +1,5 @@
 """
-SportSignal Dashboard — Streamlit dashboard for sports prediction market signals.
+SportSignal Dashboard - Streamlit dashboard for sports prediction market signals.
 
 Merged view: Markets + Signals in one unified table.
 Journal: Paper trading log.
@@ -214,37 +214,81 @@ if st.session_state.get("view_mode") == "markets":
     enriched = []
     for m in markets:
         slug = m.get("slug", "")
-        prices = m.get("prices", [0.5, 0.5])
-        try:
-            yes_pct = round(float(prices[0]) * 100, 1)
-            no_pct = round(float(prices[1]) * 100, 1)
-        except:
-            yes_pct, no_pct = 50, 50
+        mtype = m.get("marketType", "")
 
-        sig = signal_by_slug.get(slug, {})
+        # Handle group markets (match-winner with sub-markets)
+        sub_markets = m.get("markets", [])
+        if mtype == "group" and sub_markets:
+            for sm in sub_markets:
+                sm_slug = sm.get("slug", "")
+                sm_prices = sm.get("prices", [0.5, 0.5])
+                try:
+                    sm_yes = round(float(sm_prices[0]) * 100, 1)
+                    sm_no = round(float(sm_prices[1]) * 100, 1)
+                except:
+                    sm_yes, sm_no = 50, 50
 
-        enriched.append({
-            "slug": slug,
-            "title": m.get("title", "Unknown"),
-            "sport": get_sport_tag(m),
-            "yes_pct": yes_pct,
-            "no_pct": no_pct,
-            "volume": m.get("volumeFormatted", "$0"),
-            "volume_raw": int(m.get("volume", "0") or "0"),
-            "expiration": m.get("expirationDate", "N/A"),
-            "tags": m.get("tags", [])[:2],
-            # Signal
-            "has_signal": bool(sig),
-            "direction": sig.get("direction"),
-            "edge": sig.get("edge", 0),
-            "implied_pct": sig.get("news_implied_pct"),
-            "confidence": sig.get("confidence", "LOW"),
-            "rss_sentiment": sig.get("rss_sentiment", {}),
-            "twitter_sentiment": sig.get("twitter_sentiment"),
-            "api_football": sig.get("api_football"),
-            "related_tweets": sig.get("related_tweets", []),
-            "related_articles": sig.get("related_articles", []),
-        })
+                sig = signal_by_slug.get(sm_slug, {})
+
+                enriched.append({
+                    "slug": sm_slug,
+                    "title": sm.get("title", ""),
+                    "sport": get_sport_tag(m),
+                    "yes_pct": sm_yes,
+                    "no_pct": sm_no,
+                    "volume": m.get("volumeFormatted", "$0"),
+                    "volume_raw": int(m.get("volume", "0") or "0"),
+                    "expiration": m.get("expirationDate", "N/A"),
+                    "tags": m.get("tags", [])[:2],
+                    "market_type": "group_sub",
+                    "group_title": m.get("title", ""),
+                    "group_slug": slug,
+                    "trade_url": f"https://limitless.exchange/markets/{sm_slug}?r=MOS8U9NKDK",
+                    "has_signal": bool(sig),
+                    "direction": sig.get("direction"),
+                    "edge": sig.get("edge", 0),
+                    "implied_pct": sig.get("news_implied_pct"),
+                    "confidence": sig.get("confidence", "LOW"),
+                    "rss_sentiment": sig.get("rss_sentiment", {}),
+                    "twitter_sentiment": sig.get("twitter_sentiment"),
+                    "api_football": sig.get("api_football"),
+                    "related_tweets": sig.get("related_tweets", []),
+                    "related_articles": sig.get("related_articles", []),
+                })
+        else:
+            # Regular market (2-outcome)
+            prices = m.get("prices", [0.5, 0.5])
+            try:
+                yes_pct = round(float(prices[0]) * 100, 1)
+                no_pct = round(float(prices[1]) * 100, 1)
+            except:
+                yes_pct, no_pct = 50, 50
+
+            sig = signal_by_slug.get(slug, {})
+
+            enriched.append({
+                "slug": slug,
+                "title": m.get("title", "Unknown"),
+                "sport": get_sport_tag(m),
+                "yes_pct": yes_pct,
+                "no_pct": no_pct,
+                "volume": m.get("volumeFormatted", "$0"),
+                "volume_raw": int(m.get("volume", "0") or "0"),
+                "expiration": m.get("expirationDate", "N/A"),
+                "tags": m.get("tags", [])[:2],
+                "market_type": mtype or "standard",
+                "trade_url": f"https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK",
+                "has_signal": bool(sig),
+                "direction": sig.get("direction"),
+                "edge": sig.get("edge", 0),
+                "implied_pct": sig.get("news_implied_pct"),
+                "confidence": sig.get("confidence", "LOW"),
+                "rss_sentiment": sig.get("rss_sentiment", {}),
+                "twitter_sentiment": sig.get("twitter_sentiment"),
+                "api_football": sig.get("api_football"),
+                "related_tweets": sig.get("related_tweets", []),
+                "related_articles": sig.get("related_articles", []),
+            })
 
     # ── Filter & Sort ──────────────────────────────────────────────────────
     if sport_filter != "All":
@@ -363,15 +407,28 @@ if st.session_state.get("view_mode") == "markets":
             sport_icon = "⚽" if e.get("sport") == "Football" else "🏀"
 
             # Build card HTML
+            trade_url = e.get("trade_url", f"https://limitless.exchange/markets/{e.get('slug', '')}?r=MOS8U9NKDK")
+            group_title = e.get("group_title", "")
+            market_type = e.get("market_type", "")
+
+            # Show group title as subtitle for sub-markets
+            if market_type == "group_sub" and group_title:
+                title_display = f"{sport_icon} {e.get('title', '')[:55]}"
+                subtitle_display = f"<span style='font-size:10px; color:#666;'>{group_title[:60]}</span>"
+            else:
+                title_display = f"{sport_icon} {e.get('title', '')[:55]}"
+                subtitle_display = ""
+
             st.html(f"""
             <div class="mkt-card {card_class}">
-                <div class="mkt-title">{sport_icon} {e.get('title', '')[:55]}</div>
+                <div class="mkt-title">{title_display}</div>
+                {subtitle_display}
                 <div class="mkt-yes">{yes_pct:.0f}%</div>
                 <div class="mkt-edge" style="color: {edge_color};">{edge_str}</div>
                 <div class="mkt-dir" style="color: {dir_color};">{dir_str}</div>
                 <div class="mkt-sources">{src_str}</div>
                 <div class="mkt-trade">
-                    <a href="https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK" target="_blank">Trade →</a>
+                    <a href="{trade_url}" target="_blank">Trade →</a>
                 </div>
             </div>
             """)

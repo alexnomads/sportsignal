@@ -15,6 +15,10 @@ Data points:
 - Player goals/assists (for player-specific markets)
 - League standings (form table)
 """
+import os
+
+
+
 
 import requests
 import time
@@ -66,7 +70,8 @@ TEAM_ALIASES = {
 
 # Team name normalizer
 def normalize_team_name(name: str) -> str:
-    """Normalize team name to canonical form."""
+    """
+Normalize team name to canonical form."""
     name_lower = name.lower().strip()
     
     # Check aliases
