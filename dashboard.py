@@ -286,6 +286,12 @@ if st.session_state.get("view_mode") == "signals":
     data = load_signals()
     signals = data.get("signals", [])
     
+    # Stats from last generation
+    twitter_on = data.get("twitter_enabled", False)
+    tweets_count = data.get("tweets_fetched", 0)
+    articles_count = data.get("articles_fetched", 0)
+    api_fb_count = data.get("api_football_fetched", 0)
+    
     # Filter and sort
     if sport_filter != "All":
         signals = [s for s in signals if s.get("sport") == sport_filter]
@@ -293,18 +299,12 @@ if st.session_state.get("view_mode") == "signals":
     if sort_by == "Edge ↓":
         signals.sort(key=lambda x: x.get("edge", 0), reverse=True)
     elif sort_by == "Volume ↓":
-        pass  # Already sorted by edge
+        pass
     else:
         signals.sort(key=lambda x: x.get("generated_at", ""), reverse=True)
     
     # Stats
     if signals:
-        data = load_signals()
-        twitter_on = data.get("twitter_enabled", False)
-        tweets_count = data.get("tweets_fetched", 0)
-        articles_count = data.get("articles_fetched", 0)
-        api_fb_count = data.get("api_football_fetched", 0)
-        
         critical = sum(1 for s in signals if s.get("confidence") == "CRITICAL")
         high = sum(1 for s in signals if s.get("confidence") == "HIGH")
         medium = sum(1 for s in signals if s.get("confidence") == "MEDIUM")
@@ -320,9 +320,24 @@ if st.session_state.get("view_mode") == "signals":
             twitter_label = f"🐦 {tweets_count}" if twitter_on else "🐦 Off"
             st.metric("Twitter", twitter_label)
         with c5:
-            st.metric("📰 Articles", articles_count)
+            st.metric("📰 RSS", articles_count)
         with c6:
-            st.metric("⚽ API-FB", api_fb_count if api_fb_count else "-")
+            st.metric("⚽ Form", api_fb_count if api_fb_count else 0)
+    
+    # Twitter warning if off
+    if not twitter_on:
+        st.warning("⚠️ Twitter is off — add `.twitter_cookies.env` with `AUTH_TOKEN` and `CT0` to enable Twitter signals")
+    
+    # Edge explanation
+    st.caption("""
+    **📐 Edge = Market Price vs News Implied Probability**
+    | Component | Source | Weight |
+    |-----------|--------|--------|
+    | Market Price | Limitless live YES% | Base odds |
+    | News Implied | RSS sentiment + Twitter | 40% RSS / 60% Twitter |
+    | Form Adjustment | API-Football team form | ±10% max |
+    | **Edge** | Implied − Market | Where the opportunity is |
+    """)
     
     st.divider()
     
@@ -339,9 +354,27 @@ if st.session_state.get("view_mode") == "signals":
             edge_prefix = "+" if edge > 0 else ""
             
             yes_pct = sig.get("market_yes_pct", 50)
+            implied_pct = sig.get("news_implied_pct", 50)
             dir_emoji = "✅" if sig.get("direction") == "YES" else "❌"
             
             sport_badge = f'<span class="sport-badge {"football-badge" if sig.get("sport") == "Football" else "basketball-badge"}">{sig.get("sport", "Other")}</span>'
+            
+            # Build edge breakdown
+            edge_parts = []
+            rss_sent = sig.get("rss_sentiment", {})
+            tw_sent = sig.get("twitter_sentiment")
+            api_fb = sig.get("api_football")
+            
+            if rss_sent and rss_sent.get("article_count", 0) > 0:
+                rss_imp = rss_sent.get("implied_probability", 50)
+                edge_parts.append(f"RSS: {rss_imp:.0f}%")
+            if tw_sent and tw_sent.get("tweet_count", 0) > 0:
+                tw_imp = tw_sent.get("implied_probability", 50)
+                edge_parts.append(f"🐦 {tw_imp:.0f}%")
+            if api_fb and api_fb.get("home_form"):
+                edge_parts.append(f"⚽ Form")
+            
+            edge_breakdown = " · ".join(edge_parts) if edge_parts else ""
             
             with st.container():
                 st.markdown(f"""
@@ -362,8 +395,12 @@ if st.session_state.get("view_mode") == "signals":
                     </div>
                     <div style="display: flex; gap: 16px; font-size: 13px; color: #aaa; margin-bottom: 8px;">
                         <span>Market: <span class="{'yes-price' if yes_pct >= 50 else 'no-price'}">{yes_pct}% YES</span></span>
-                        <span>News implied: <span style="color: #fbbf24;">{sig.get('news_implied_pct', 50)}%</span></span>
+                        <span>Implied: <span style="color: #fbbf24;">{implied_pct}%</span></span>
                         <span>📊 {sig.get('volume', '$0')}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #555; margin-bottom: 8px;">
+                        Sources: {edge_breakdown}
+                    </div>
                         <span>🏁 {sig.get('expiration', 'N/A')}</span>
                     </div>
                     <div style="font-size: 12px; color: #666;">
