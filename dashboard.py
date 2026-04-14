@@ -218,6 +218,39 @@ st.divider()
 if st.session_state.get("view_mode") == "signals":
     
     st.markdown("## 📡 Trading Signals")
+    
+    # Sport category links
+    st.html("""
+    <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+        <a href="https://limitless.exchange/markets/sport/all-football?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a2e;
+            border: 1px solid #4a90d9;
+            color: #4a90d9;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        ">⚽ Football on Limitless →</a>
+        <a href="https://limitless.exchange/markets/sport/all-basketball?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a1a;
+            border: 1px solid #f97316;
+            color: #f97316;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        ">🏀 Basketball on Limitless →</a>
+    </div>
+    """)
+    
     st.caption("Sports market opportunities — edge based on RSS sentiment vs Limitless prices")
     
     # Controls row
@@ -344,6 +377,39 @@ if st.session_state.get("view_mode") == "signals":
 elif st.session_state.get("view_mode") == "markets":
     
     st.markdown("## 📊 Live Sports Markets")
+    
+    # Sport category links
+    st.html("""
+    <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+        <a href="https://limitless.exchange/markets/sport/all-football?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a2e;
+            border: 1px solid #4a90d9;
+            color: #4a90d9;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        ">⚽ All Football Markets →</a>
+        <a href="https://limitless.exchange/markets/sport/all-basketball?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1a1a;
+            border: 1px solid #f97316;
+            color: #f97316;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        ">🏀 All Basketball Markets →</a>
+    </div>
+    """)
+    
     st.caption("Browse and search prediction markets on Limitless Exchange (Base)")
     
     # Controls
