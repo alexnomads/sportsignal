@@ -303,12 +303,13 @@ if st.session_state.get("view_mode") == "signals":
         twitter_on = data.get("twitter_enabled", False)
         tweets_count = data.get("tweets_fetched", 0)
         articles_count = data.get("articles_fetched", 0)
+        api_fb_count = data.get("api_football_fetched", 0)
         
         critical = sum(1 for s in signals if s.get("confidence") == "CRITICAL")
         high = sum(1 for s in signals if s.get("confidence") == "HIGH")
         medium = sum(1 for s in signals if s.get("confidence") == "MEDIUM")
         
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
         with c1:
             st.metric("Total Signals", len(signals))
         with c2:
@@ -320,6 +321,8 @@ if st.session_state.get("view_mode") == "signals":
             st.metric("Twitter", twitter_label)
         with c5:
             st.metric("📰 Articles", articles_count)
+        with c6:
+            st.metric("⚽ API-FB", api_fb_count if api_fb_count else "-")
     
     st.divider()
     
@@ -376,6 +379,21 @@ if st.session_state.get("view_mode") == "signals":
                 if tweets or arts:
                     total_content = len(tweets) + len(arts)
                     with st.expander(f"📡 Related content ({total_content} sources)"):
+                        # API-Football form data
+                        api_fb = sig.get("api_football")
+                        if api_fb and api_fb.get("home_form"):
+                            home_form = api_fb.get("home_form", "")
+                            away_form = api_fb.get("away_form", "")
+                            home_score = api_fb.get("home_form_score", 0)
+                            away_score = api_fb.get("away_form_score", 0)
+                            
+                            st.markdown(f"""
+                            **⚽ Team Form (API-Football)**
+                            - {api_fb.get("home", "Home")}: **{home_form}** ({home_score} pts)
+                            - {api_fb.get("away", "Away")}: **{away_form}** ({away_score} pts)
+                            """)
+                            st.divider()
+                        
                         # Twitter tweets
                         if tweets:
                             st.markdown("**🐦 Twitter**")

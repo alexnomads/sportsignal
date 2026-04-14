@@ -38,6 +38,22 @@ RSS_FEEDS = {
         "sport": "Basketball",
         "name": "ESPN NBA",
     },
+    # Transfermarkt — Transfer news (high signal value)
+    "transfermarkt_uk": {
+        "url": "https://www.transfermarkt.co.uk/rss/news",
+        "sport": "Football",
+        "name": "Transfermarkt UK",
+    },
+    "transfermarkt_it": {
+        "url": "https://www.transfermarkt.it/rss/news",
+        "sport": "Football",
+        "name": "Transfermarkt IT",
+    },
+    "transfermarkt_es": {
+        "url": "https://www.transfermarkt.es/rss/news",
+        "sport": "Football",
+        "name": "Transfermarkt ES",
+    },
     "sky_football": {
         "url": "https://www.skysports.com/rss/12040",
         "sport": "Football",
