@@ -186,6 +186,23 @@ st.html("""
         100% { transform: translateX(-50%); }
     }
 
+    /* ── Column Headers ───────────────────────────────────────────────── */
+    .match-col-headers {
+        display: flex;
+        border-bottom: 1px solid #1e1e2a;
+    }
+    .match-col-headers span {
+        flex: 1;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 700;
+        color: #555;
+        letter-spacing: 0.08em;
+        padding: 3px 4px;
+        text-transform: uppercase;
+    }
+    .match-col-headers span:last-child { text-align: center; }
+
     @media (max-width: 600px) {
         .match-outcomes { flex-direction: column; }
         .mkt-outcome { border-right: none; border-bottom: 1px solid #1e1e2a; text-align: left; display: flex; align-items: center; gap: 8px; padding: 8px 14px; }
@@ -546,40 +563,15 @@ if st.session_state.get("view_mode") == "markets":
                         <span class="match-teams">{group_title[2:60]}</span>
                         <span class="match-meta">💰 {volume} &nbsp;📅 {expiration[:9]}</span>
                     </div>
+                    <div class="match-col-headers">
+                        <span>TEAM</span><span>YES %</span><span>EDGE</span><span>DIRECTION</span><span>ACTION</span>
+                    </div>
                     <div class="match-outcomes">
                         {outcome_cols}
                     </div>
                     {news_ticker}
                 </div>
                 """)
-
-                # Expandable: edge breakdown per outcome
-                with st.expander(f"📊 {group_title[:50]} — Details", expanded=False):
-                    cols = st.columns(3)
-                    for i, o in enumerate(outcomes_sorted):
-                        with cols[i]:
-                            yes_pct = o.get("yes_pct", 50)
-                            edge = o.get("edge", 0)
-                            rss_s = o.get("rss_sentiment") or {}
-                            tw_s = o.get("twitter_sentiment") or {}
-                            api_fb = o.get("api_football")
-                            implied = o.get("implied_pct")
-
-                            lines = [f"**{o.get('title','')}**"]
-                            lines.append(f"YEST {yes_pct:.0f}%")
-                            if implied:
-                                lines.append(f"News: {implied:.0f}%")
-                            if rss_s.get("article_count", 0) > 0:
-                                lines.append(f"📰 {rss_s['article_count']} articles")
-                            if tw_s.get("tweet_count", 0) > 0:
-                                lines.append(f"🐦 {tw_s['tweet_count']} tweets")
-                            if api_fb and api_fb.get("api_implied"):
-                                lines.append(f"⚽ {api_fb['api_implied']:.0f}%")
-                            lines.append(f"**Edge: +{edge:.0f}%**")
-
-                            conf = o.get("confidence","LOW")
-                            conf_color = "red" if conf=="CRITICAL" else "orange" if conf=="HIGH" else "yellow" if conf=="MEDIUM" else "gray"
-                            st.caption(" | ".join(lines))
 
         # ── Standard Market Cards ─────────────────────────────────────────────
         if standard_markets:
@@ -710,94 +702,6 @@ if st.session_state.get("view_mode") == "markets":
                 </div>
             </div>
             """)
-
-            # Expandable details
-            if e.get("has_signal") or e.get("related_tweets") or e.get("related_articles"):
-                has_detail = len(e.get("related_tweets", [])) + len(e.get("related_articles", [])) > 0
-                detail_label = f"📊 Details · {e.get('title', '')[:40]}... | Edge: {edge:+.1f}%"
-
-                with st.expander(detail_label):
-                    col_left, col_right = st.columns([3, 1])
-
-                    with col_left:
-                        # Edge breakdown table
-                        rss_s = e.get("rss_sentiment") or {}
-                        tw_s = e.get("twitter_sentiment") or {}
-                        api_fb = e.get("api_football")
-
-                        st.markdown("**📐 Edge Calculation**")
-
-                        table_md = "| Component | Value |\n|-----------|-------|\n"
-                        table_md += f"| Market YES% (Limitless) | **{yes_pct:.1f}%** |\n"
-
-                        if rss_s.get("article_count", 0) > 0:
-                            table_md += f"| 📰 RSS ({rss_s.get('article_count')} articles) | **{rss_s.get('implied_probability', 50):.1f}%** |\n"
-
-                        if tw_s.get("tweet_count", 0) > 0:
-                            table_md += f"| 🐦 Twitter ({tw_s.get('tweet_count')} tweets) | **{tw_s.get('implied_probability', 50):.1f}%** |\n"
-
-                        if api_fb and (api_fb.get("home_form") or api_fb.get("api_implied")):
-                            api_imp = api_fb.get("api_implied")
-                            conf = api_fb.get("api_confidence", "LOW")
-                            if api_imp:
-                                table_md += f"| ⚽ API-FB ({conf}) | **{api_imp:.1f}%** |\n"
-                            else:
-                                table_md += f"| ⚽ Team Form | Adjusted |\n"
-
-                        if e.get("implied_pct"):
-                            table_md += f"| **Combined Implied** | **{e.get('implied_pct'):.1f}%** |\n"
-
-                        table_md += f"| **EDGE** | **+{edge:.1f}%** |\n"
-                        st.markdown(table_md)
-
-                        # API-Football data
-                        if api_fb:
-                            mtype = api_fb.get("market_type", "general")
-                            st.markdown(f"**⚽ API-Football** - type: `{mtype}` | conf: `{api_fb.get('api_confidence', 'LOW')}`")
-                            if api_fb.get("home_form"):
-                                st.markdown(f"- **{api_fb.get('home_team', 'Home')}**: `{api_fb.get('home_form', '')}` ({api_fb.get('home_form_score', 0):.0f} pts, {api_fb.get('home_ppg', 0):.2f} PPG)")
-                                st.markdown(f"- **{api_fb.get('away_team', 'Away')}**: `{api_fb.get('away_form', '')}` ({api_fb.get('away_form_score', 0):.0f} pts, {api_fb.get('away_ppg', 0):.2f} PPG)")
-                            h2h_parts = []
-                            if api_fb.get("h2h_avg_goals"): h2h_parts.append(f"Avg: {api_fb.get('h2h_avg_goals'):.1f}g")
-                            if api_fb.get("h2h_btts_rate"): h2h_parts.append(f"BTTS: {api_fb.get('h2h_btts_rate'):.0f}%")
-                            if api_fb.get("h2h_home_win_rate"): h2h_parts.append(f"HomeW: {api_fb.get('h2h_home_win_rate'):.0f}%")
-                            if h2h_parts: st.markdown(f"**📊 H2H** {' · '.join(h2h_parts)}")
-                            if api_fb.get("home_avg_goals"): st.markdown(f"**⚽ Attack** - {api_fb.get('home_team','Home')}: {api_fb.get('home_avg_goals',0):.1f}g/m | {api_fb.get('away_team','Away')}: {api_fb.get('away_avg_goals',0):.1f}g/m")
-                            if api_fb.get("home_avg_corners"): st.markdown(f"**📐 Corners** - {api_fb.get('home_team','Home')}: {api_fb.get('home_avg_corners',0):.1f} | {api_fb.get('away_team','Away')}: {api_fb.get('away_avg_corners',0):.1f}")
-                            if api_fb.get("home_injuries") or api_fb.get("away_injuries"): st.markdown(f"**🏥 Injuries** - Home: {api_fb.get('home_injuries',0)} ({api_fb.get('home_injury_level','none')}) | Away: {api_fb.get('away_injuries',0)} ({api_fb.get('away_injury_level','none')})")
-                            if api_fb.get("predictions"): st.markdown(f"**🤖 Advice**: {api_fb.get('predictions')}")
-                            if api_fb.get("pred_correct_score"): st.markdown(f"**🤖 Score**: `{api_fb.get('pred_correct_score')}`")
-                            if api_fb.get("pred_home_win"): st.markdown(f"**🤖 Probs**: Home {api_fb.get('pred_home_win'):.0f}% | Draw {api_fb.get('pred_draw',0):.0f}% | Away {api_fb.get('pred_away_win',0):.0f}%")
-
-                        # Tweets
-                        tweets = e.get("related_tweets", [])
-                        if tweets:
-                            st.markdown(f"**🐦 Related Tweets ({len(tweets)})**")
-                            for tw in tweets[:5]:
-                                brk = "🔥 " if tw.get("is_breaking") else ""
-                                src = tw.get("source", "@?").replace("Twitter/@", "")
-                                st.markdown(f"- {brk}[{src}]({tw.get('url', '#')}): {tw.get('title', '')[:80]}")
-
-                        # Articles
-                        arts = e.get("related_articles", [])
-                        if arts:
-                            st.markdown(f"**📰 Related Articles ({len(arts)})**")
-                            for art in arts[:3]:
-                                st.markdown(f"- [{art.get('source', 'Source')}]({art.get('link', '#')}): {art.get('title', '')[:80]}")
-
-                    with col_right:
-                        st.markdown("**📓 Journal**")
-                        if st.button("Add to Journal", key=f"addj_{slug}", use_container_width=True):
-                            st.session_state["prefill_url"] = f"https://limitless.exchange/markets/{slug}"
-                            st.session_state["prefill_prob"] = yes_pct
-                            st.session_state["prefill_question"] = e.get("title", "")
-                            st.session_state["view_mode"] = "journal"
-                            st.success("Added! Go to Journal tab.")
-                            st.rerun()
-
-                        st.markdown("")
-                        st.markdown("**🔗 Trade**")
-                        st.markdown(f"[Open on Limitless →](https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK)")
 
         st.divider()
         st.caption(
