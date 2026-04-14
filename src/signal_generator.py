@@ -156,18 +156,20 @@ def generate_signals(sport_filter: str = None, min_edge: float = 0.10, limit: in
 def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: list = None) -> Optional[dict]:
     """Analyze a single market against RSS articles + Twitter + API-Football."""
     
-    title = market.get("title", "").lower()
+    title = market.get("title", "")
+    title_lower = title.lower()
     tags = [t.lower() for t in market.get("tags", []) + market.get("categories", [])]
     slug = market.get("slug", "")
     
+    # Detect market type
+    market_type = _detect_market_type(title_lower)
+    
     # Extract key entities
-    keywords = _extract_entities(title)
+    keywords = _extract_entities(title_lower)
     
     # Find related content
     related_articles = []
     related_tweets = []
-    related_fixture = None
-    api_football_data = None
     
     # Check RSS articles
     for article in articles[:50]:
@@ -183,63 +185,95 @@ def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: li
         if match_count >= 1:
             related_tweets.append(tweet)
     
-    # Check API-Football fixtures
-    if api_fixtures and API_FOOTBALL_AVAILABLE:
-        from api_football_client import get_team_form, get_match_prediction
-        for fix in api_fixtures[:30]:
-            teams = fix.get("teams", {})
-            home_name = teams.get("home", {}).get("name", "").lower()
-            away_name = teams.get("away", {}).get("name", "").lower()
-            
-            # Check if teams match market
-            home_matches = sum(1 for kw in keywords if kw in home_name)
-            away_matches = sum(1 for kw in keywords if kw in away_name)
-            
-            if home_matches >= 1 and away_matches >= 1:
-                related_fixture = fix
-                fid = fix.get("fixture", {}).get("id")
-                
-                # Get team form
-                home_team = teams.get("home", {}).get("name", "")
-                away_team = teams.get("away", {}).get("name", "")
-                
-                api_football_data = {
-                    "fixture": fix,
-                    "home_team": home_team,
-                    "away_team": away_team,
-                    "home_form": get_team_form(home_team),
-                    "away_form": get_team_form(away_team),
-                }
-                break
+    # ── API-Football ────────────────────────────────────────────────────────
+    api_football_data = None
+    api_implied = None
+    api_confidence = "LOW"
+    api_breakdown = []
     
-    if not related_articles and not related_tweets and not related_fixture:
+    if API_FOOTBALL_AVAILABLE:
+        try:
+            from api_football_client import (
+                detect_market_type, extract_teams_from_market_title,
+                find_fixture, get_market_relevant_data,
+                calculate_implied_probability, get_upcoming_fixtures
+            )
+            
+            # Try to extract teams from market title
+            home_team, away_team = extract_teams_from_market_title(title)
+            
+            # If no teams found, try keyword matching
+            if not home_team or not away_team:
+                from api_football_client import normalize_team_name
+                fixtures = api_fixtures or get_upcoming_fixtures(days=3)
+                
+                for fix in fixtures[:50]:
+                    teams = fix.get("teams", {})
+                    fix_home = teams.get("home", {}).get("name", "")
+                    fix_away = teams.get("away", {}).get("name", "")
+                    
+                    h_match = any(kw in fix_home.lower() for kw in keywords if len(kw) >= 3)
+                    a_match = any(kw in fix_away.lower() for kw in keywords if len(kw) >= 3)
+                    
+                    if h_match and a_match:
+                        home_team = fix_home
+                        away_team = fix_away
+                        break
+                    elif fix_home and (h_match or any(fix_home.lower() in kw for kw in keywords)):
+                        home_team = fix_home
+                    elif fix_away and (a_match or any(fix_away.lower() in kw for kw in keywords)):
+                        away_team = fix_away
+            
+            if home_team and away_team:
+                # Get all relevant API-FB data
+                api_football_data = get_market_relevant_data(home_team, away_team, market_type)
+                
+                # Calculate implied probability for this market type
+                api_implied, api_confidence, api_breakdown = calculate_implied_probability(
+                    api_football_data, market_type
+                )
+                
+                logger.debug(f"API-FB [{market_type}]: {home_team} vs {away_team} → implied={api_implied}%, conf={api_confidence}")
+        
+        except Exception as e:
+            logger.warning(f"API-FB error: {e}")
+    
+    # Skip if no content AND no API data
+    if not related_articles and not related_tweets and api_implied is None:
         return None
     
-    # Analyze sentiment
+    # ── Sentiment Analysis ───────────────────────────────────────────────────
     rss_sentiment = _analyze_rss_sentiment(related_articles)
     twitter_sentiment = _analyze_twitter_sentiment(related_tweets)
     
-    # Combine sentiment (Twitter weighted higher if available)
+    # Combine RSS + Twitter sentiment
     if len(related_tweets) > 0:
-        combined_score = (rss_sentiment["score"] * 0.4) + (twitter_sentiment["score"] * 0.6)
-        combined_implied = (rss_sentiment["implied_probability"] * 0.4) + (twitter_sentiment["implied_probability"] * 0.6)
+        sentiment_implied = (
+            rss_sentiment["implied_probability"] * 0.4 +
+            twitter_sentiment["implied_probability"] * 0.6
+        )
+        sentiment_score = (
+            rss_sentiment["score"] * 0.4 +
+            twitter_sentiment["score"] * 0.6
+        )
     else:
-        combined_score = rss_sentiment["score"]
-        combined_implied = rss_sentiment["implied_probability"]
+        sentiment_implied = rss_sentiment["implied_probability"]
+        sentiment_score = rss_sentiment["score"]
     
-    # Apply API-Football adjustments
-    if api_football_data:
-        # Compare form scores
-        home_form_score = api_football_data.get("home_form", {}).get("form_score", 0)
-        away_form_score = api_football_data.get("away_form", {}).get("form_score", 0)
-        
-        # Adjust implied probability based on form
-        form_diff = home_form_score - away_form_score
-        # Normalize to 0-10% adjustment
-        form_adjustment = min(max(form_diff / 10, -10), 10)  # Cap at 10%
-        combined_implied += form_adjustment
+    # ── Final Implied Probability ────────────────────────────────────────────
+    # Weight: API-FB predictions most reliable when available
+    if api_implied is not None and api_confidence in ("HIGH", "MEDIUM"):
+        if api_confidence == "HIGH":
+            # API-FB predictions dominate (e.g. AI predictions with advice)
+            combined_implied = api_implied * 0.6 + sentiment_implied * 0.4
+        else:
+            # Balanced
+            combined_implied = api_implied * 0.5 + sentiment_implied * 0.5
+    else:
+        # No strong API-FB data — use sentiment only
+        combined_implied = sentiment_implied
     
-    # Get market price
+    # ── Edge Calculation ───────────────────────────────────────────────────
     prices = market.get("prices", [0.5, 0.5])
     try:
         market_yes_pct = float(prices[0]) * 100
@@ -247,9 +281,6 @@ def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: li
         market_yes_pct = 50
     
     # Calculate edge
-    edge = abs(combined_implied - market_yes_pct)
-    
-    # Determine direction
     if combined_implied > market_yes_pct:
         direction = "YES"
         edge = combined_implied - market_yes_pct
@@ -258,14 +289,18 @@ def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: li
         edge = market_yes_pct - combined_implied
     
     # Skip if edge too small
-    if edge < 5 or abs(combined_score) < 0.1:
+    if edge < 5 or abs(sentiment_score) < 0.1 and api_implied is None:
         return None
     
-    # Confidence based on content + edge
+    # Confidence
     content_count = len(related_articles) + len(related_tweets)
-    confidence = _calc_confidence(content_count, edge, related_tweets, api_football_data is not None)
+    confidence = _calc_confidence(
+        content_count, edge, related_tweets,
+        api_data=api_football_data,
+        api_confidence=api_confidence
+    )
     
-    # Check for special signals
+    # Special signals
     is_breaking = any(t.is_breaking for t in related_tweets)
     is_transfer = any(t.is_transfer for t in related_tweets)
     is_injury = any(t.is_injury for t in related_tweets)
@@ -295,14 +330,40 @@ def _analyze_market(market: dict, articles: list, tweets: list, api_fixtures: li
         "rss_sentiment": rss_sentiment,
         "twitter_sentiment": twitter_sentiment if related_tweets else None,
         "api_football": {
-            "fixture": {
-                "home": api_football_data.get("home_team") if api_football_data else None,
-                "away": api_football_data.get("away_team") if api_football_data else None,
-            },
-            "home_form": api_football_data.get("home_form", {}).get("form", "") if api_football_data else None,
-            "away_form": api_football_data.get("away_form", {}).get("form", "") if api_football_data else None,
-            "home_form_score": api_football_data.get("home_form", {}).get("form_score", 0) if api_football_data else 0,
-            "away_form_score": api_football_data.get("away_form", {}).get("form_score", 0) if api_football_data else 0,
+            "home_team": api_football_data.get("home_team") if api_football_data else None,
+            "away_team": api_football_data.get("away_team") if api_football_data else None,
+            "market_type": market_type,
+            "api_implied": api_implied,
+            "api_confidence": api_confidence,
+            "api_breakdown": api_breakdown,
+            # Form data
+            "home_form": api_football_data.get("home_form", {}).get("overall", {}).get("form", "") if api_football_data else None,
+            "away_form": api_football_data.get("away_form", {}).get("overall", {}).get("form", "") if api_football_data else None,
+            "home_form_score": api_football_data.get("form_comparison", {}).get("home_form_score", 0) if api_football_data else 0,
+            "away_form_score": api_football_data.get("form_comparison", {}).get("away_form_score", 0) if api_football_data else 0,
+            "home_ppg": api_football_data.get("form_comparison", {}).get("home_ppg", 0) if api_football_data else 0,
+            "away_ppg": api_football_data.get("form_comparison", {}).get("away_ppg", 0) if api_football_data else 0,
+            "form_diff": api_football_data.get("form_comparison", {}).get("form_diff", 0) if api_football_data else 0,
+            # H2H data
+            "h2h_avg_goals": api_football_data.get("h2h", {}).get("avg_goals") if api_football_data else None,
+            "h2h_btts_rate": api_football_data.get("h2h", {}).get("btts_rate") if api_football_data else None,
+            "h2h_home_win_rate": api_football_data.get("h2h", {}).get("home_win_rate") if api_football_data else None,
+            # Recent stats
+            "home_avg_goals": api_football_data.get("home_stats", {}).get("avg_goals_scored") if api_football_data else None,
+            "away_avg_goals": api_football_data.get("away_stats", {}).get("avg_goals_scored") if api_football_data else None,
+            "home_avg_corners": api_football_data.get("home_stats", {}).get("avg_corners") if api_football_data else None,
+            "away_avg_corners": api_football_data.get("away_stats", {}).get("avg_corners") if api_football_data else None,
+            # Injuries
+            "home_injuries": api_football_data.get("injuries", {}).get("home_count", 0) if api_football_data else 0,
+            "away_injuries": api_football_data.get("injuries", {}).get("away_count", 0) if api_football_data else 0,
+            "home_injury_level": api_football_data.get("injuries", {}).get("home_level", "none") if api_football_data else "none",
+            "away_injury_level": api_football_data.get("injuries", {}).get("away_level", "none") if api_football_data else "none",
+            # Predictions
+            "predictions": api_football_data.get("predictions", {}).get("advice") if api_football_data else None,
+            "pred_home_win": api_football_data.get("predictions", {}).get("win_probs", {}).get("home_win") if api_football_data else None,
+            "pred_draw": api_football_data.get("predictions", {}).get("win_probs", {}).get("draw") if api_football_data else None,
+            "pred_away_win": api_football_data.get("predictions", {}).get("win_probs", {}).get("away_win") if api_football_data else None,
+            "pred_correct_score": api_football_data.get("predictions", {}).get("correct_score") if api_football_data else None,
         } if api_football_data else None,
         "is_breaking": is_breaking,
         "is_transfer": is_transfer,
@@ -383,7 +444,21 @@ def _analyze_twitter_sentiment(tweets: list) -> dict:
     }
 
 
-def _calc_confidence(content_count: int, edge: float, tweets: list, has_api_football: bool = False) -> str:
+def _detect_market_type(title_lower: str) -> str:
+    """Detect market type from title."""
+    if any(k in title_lower for k in ["over 2.5", "under 2.5", "total goals", "total score"]): return "total_goals"
+    if any(k in title_lower for k in ["both teams", " btts", "each team", " to score", "both score", "each of the"]): return "btts"
+    if any(k in title_lower for k in ["corner", "corners"]): return "corners"
+    if any(k in title_lower for k in ["yellow", "red card", "cards", "bookings"]): return "cards"
+    if any(k in title_lower for k in ["score", "win the", "wins the", "winner", "qualify", "advance", "relegat"]): return "match_result"
+    if any(k in title_lower for k in ["scorer", "brace", "hat-trick", "goalscorer", "trick", "first goal"]): return "scorer"
+    if any(k in title_lower for k in ["assist", "most assist"]): return "assists"
+    if any(k in title_lower for k in ["half", "1st half", "2nd half", "ht/f"]): return "half_result"
+    if any(k in title_lower for k in ["penalty", "red card", "send off", "offside"]): return "special"
+    return "general"
+
+
+def _calc_confidence(content_count: int, edge: float, tweets: list, api_data: dict = None, api_confidence: str = "LOW") -> str:
     """Calculate signal confidence level."""
     has_twitter = len(tweets) > 0
     has_breaking = any(t.is_breaking for t in tweets) if tweets else False
@@ -394,14 +469,18 @@ def _calc_confidence(content_count: int, edge: float, tweets: list, has_api_foot
     
     # Boost confidence with Twitter signals and API-Football
     twitter_boost = 1.0
-    if has_twitter:
-        twitter_boost += 0.5
-    if has_breaking or has_transfer:
-        twitter_boost += 1.0
-    if has_injury:
-        twitter_boost += 0.5
-    if has_api_football:
-        twitter_boost += 1.0  # Real form data is strong signal
+    if has_twitter: twitter_boost += 0.5
+    if has_breaking or has_transfer: twitter_boost += 1.0
+    if has_injury: twitter_boost += 0.5
+    
+    # API-FB boosts
+    if api_data:
+        if api_confidence == "HIGH": twitter_boost += 1.5
+        elif api_confidence == "MEDIUM": twitter_boost += 0.8
+        if api_data.get("predictions"): twitter_boost += 0.5
+        if api_data.get("h2h"): twitter_boost += 0.3
+        if api_data.get("injuries", {}).get("home_key_injuries", 0) > 0: twitter_boost += 0.3
+        if api_data.get("injuries", {}).get("away_key_injuries", 0) > 0: twitter_boost += 0.3
     
     effective_edge = abs_edge * twitter_boost
     

@@ -1,7 +1,29 @@
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.production
+.twitter_cookies.env
+.google_*.json
+.polymarket_config.json
+
+# Python
 __pycache__/
 *.pyc
-.env
-*.json
-!requirements.txt
+*.pyo
 venv/
-.twitter_cookies.env
+.venv/
+*.egg-info/
+
+# Data files (contains signals, journal entries)
+data/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Keep requirements.txt
+!requirements.txt

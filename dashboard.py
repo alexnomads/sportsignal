@@ -1,5 +1,5 @@
 """
-SportSignal Dashboard - Streamlit dashboard for sports prediction market signals.
+SportSignal Dashboard — Streamlit dashboard for sports prediction market signals.
 
 Merged view: Markets + Signals in one unified table.
 Journal: Paper trading log.
@@ -7,11 +7,19 @@ Journal: Paper trading log.
 Powered by Limitless Exchange API on Base blockchain.
 """
 
+import os
+from pathlib import Path
+
+# Load .env file if it exists
+ENV_FILE = Path(__file__).parent / ".env"
+if ENV_FILE.exists():
+    from dotenv import load_dotenv
+    load_dotenv(ENV_FILE)
+
 import streamlit as st
 import pandas as pd
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -55,7 +63,7 @@ st.html("""
         color: #999 !important;
         opacity: 1 !important;
     }
-    /* Market card — responsive */
+    /* Market card - responsive */
     .mkt-card {
         background: #111118;
         border-radius: 8px;
@@ -393,22 +401,38 @@ if st.session_state.get("view_mode") == "markets":
                         if tw_s.get("tweet_count", 0) > 0:
                             table_md += f"| 🐦 Twitter ({tw_s.get('tweet_count')} tweets) | **{tw_s.get('implied_probability', 50):.1f}%** |\n"
 
-                        if api_fb and api_fb.get("home_form"):
-                            table_md += f"| ⚽ Team Form | Adjusted |\n"
+                        if api_fb and (api_fb.get("home_form") or api_fb.get("api_implied")):
+                            api_imp = api_fb.get("api_implied")
+                            conf = api_fb.get("api_confidence", "LOW")
+                            if api_imp:
+                                table_md += f"| ⚽ API-FB ({conf}) | **{api_imp:.1f}%** |\n"
+                            else:
+                                table_md += f"| ⚽ Team Form | Adjusted |\n"
 
                         if e.get("implied_pct"):
-                            table_md += f"| **Implied Probability** | **{e.get('implied_pct'):.1f}%** |\n"
+                            table_md += f"| **Combined Implied** | **{e.get('implied_pct'):.1f}%** |\n"
 
                         table_md += f"| **EDGE** | **+{edge:.1f}%** |\n"
                         st.markdown(table_md)
 
-                        # Team form
-                        if api_fb and api_fb.get("home_form"):
-                            st.markdown(f"""
-                            **⚽ Team Form**
-                            - {api_fb.get('home', 'Home')}: `{api_fb.get('home_form', '')}` ({api_fb.get('home_form_score', 0)} pts)
-                            - {api_fb.get('away', 'Away')}: `{api_fb.get('away_form', '')}` ({api_fb.get('away_form_score', 0)} pts)
-                            """)
+                        # API-Football data
+                        if api_fb:
+                            mtype = api_fb.get("market_type", "general")
+                            st.markdown(f"**⚽ API-Football** - type: `{mtype}` | conf: `{api_fb.get('api_confidence', 'LOW')}`")
+                            if api_fb.get("home_form"):
+                                st.markdown(f"- **{api_fb.get('home_team', 'Home')}**: `{api_fb.get('home_form', '')}` ({api_fb.get('home_form_score', 0):.0f} pts, {api_fb.get('home_ppg', 0):.2f} PPG)")
+                                st.markdown(f"- **{api_fb.get('away_team', 'Away')}**: `{api_fb.get('away_form', '')}` ({api_fb.get('away_form_score', 0):.0f} pts, {api_fb.get('away_ppg', 0):.2f} PPG)")
+                            h2h_parts = []
+                            if api_fb.get("h2h_avg_goals"): h2h_parts.append(f"Avg: {api_fb.get('h2h_avg_goals'):.1f}g")
+                            if api_fb.get("h2h_btts_rate"): h2h_parts.append(f"BTTS: {api_fb.get('h2h_btts_rate'):.0f}%")
+                            if api_fb.get("h2h_home_win_rate"): h2h_parts.append(f"HomeW: {api_fb.get('h2h_home_win_rate'):.0f}%")
+                            if h2h_parts: st.markdown(f"**📊 H2H** {' · '.join(h2h_parts)}")
+                            if api_fb.get("home_avg_goals"): st.markdown(f"**⚽ Attack** - {api_fb.get('home_team','Home')}: {api_fb.get('home_avg_goals',0):.1f}g/m | {api_fb.get('away_team','Away')}: {api_fb.get('away_avg_goals',0):.1f}g/m")
+                            if api_fb.get("home_avg_corners"): st.markdown(f"**📐 Corners** - {api_fb.get('home_team','Home')}: {api_fb.get('home_avg_corners',0):.1f} | {api_fb.get('away_team','Away')}: {api_fb.get('away_avg_corners',0):.1f}")
+                            if api_fb.get("home_injuries") or api_fb.get("away_injuries"): st.markdown(f"**🏥 Injuries** - Home: {api_fb.get('home_injuries',0)} ({api_fb.get('home_injury_level','none')}) | Away: {api_fb.get('away_injuries',0)} ({api_fb.get('away_injury_level','none')})")
+                            if api_fb.get("predictions"): st.markdown(f"**🤖 Advice**: {api_fb.get('predictions')}")
+                            if api_fb.get("pred_correct_score"): st.markdown(f"**🤖 Score**: `{api_fb.get('pred_correct_score')}`")
+                            if api_fb.get("pred_home_win"): st.markdown(f"**🤖 Probs**: Home {api_fb.get('pred_home_win'):.0f}% | Draw {api_fb.get('pred_draw',0):.0f}% | Away {api_fb.get('pred_away_win',0):.0f}%")
 
                         # Tweets
                         tweets = e.get("related_tweets", [])

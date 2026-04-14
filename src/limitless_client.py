@@ -5,6 +5,7 @@ Base URL: https://api.limitless.exchange
 Auth: HMAC-SHA256 for trading, public for market data.
 """
 
+import os
 import hmac
 import hashlib
 import base64
@@ -15,9 +16,9 @@ from typing import Optional
 
 BASE_URL = "https://api.limitless.exchange"
 
-# API credentials (from environment or config)
-API_KEY = "oITO-7EMQOcJbwCW"
-API_SECRET = "aRqne6OrWR9ZXnmBmeA48uGEbIUlhsvA1K8Z+hegU0w="
+# API credentials from environment variables
+API_KEY = os.environ.get("LIMITLESS_API_KEY", "")
+API_SECRET = os.environ.get("LIMITLESS_API_SECRET", "")
 
 
 def _sign_request(method: str, path: str, body: str = "") -> dict:
