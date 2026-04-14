@@ -299,18 +299,27 @@ if st.session_state.get("view_mode") == "signals":
     
     # Stats
     if signals:
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.metric("Total Signals", len(signals))
+        data = load_signals()
+        twitter_on = data.get("twitter_enabled", False)
+        tweets_count = data.get("tweets_fetched", 0)
+        articles_count = data.get("articles_fetched", 0)
+        
         critical = sum(1 for s in signals if s.get("confidence") == "CRITICAL")
         high = sum(1 for s in signals if s.get("confidence") == "HIGH")
         medium = sum(1 for s in signals if s.get("confidence") == "MEDIUM")
+        
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            st.metric("Total Signals", len(signals))
         with c2:
             st.metric("🔴 Critical", critical)
         with c3:
             st.metric("🟠 High", high)
         with c4:
-            st.metric("🟡 Medium", medium)
+            twitter_label = f"🐦 {tweets_count}" if twitter_on else "🐦 Off"
+            st.metric("Twitter", twitter_label)
+        with c5:
+            st.metric("📰 Articles", articles_count)
     
     st.divider()
     
@@ -360,14 +369,29 @@ if st.session_state.get("view_mode") == "signals":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Related articles
+                # Related content: Twitter + Articles
+                tweets = sig.get("related_tweets", [])
                 arts = sig.get("related_articles", [])
-                if arts:
-                    with st.expander(f"📰 Related articles ({len(arts)})"):
-                        for art in arts:
-                            st.markdown(f"**[{art.get('source', 'Source')}]({art.get('link', '#')})** — {art.get('title', '')[:80]}...")
-                            st.caption(f"{art.get('published_ago', '')}")
-                            st.divider()
+                
+                if tweets or arts:
+                    total_content = len(tweets) + len(arts)
+                    with st.expander(f"📡 Related content ({total_content} sources)"):
+                        # Twitter tweets
+                        if tweets:
+                            st.markdown("**🐦 Twitter**")
+                            for tw in tweets[:5]:
+                                breaking_tag = "🔥 " if tw.get("is_breaking") else ""
+                                st.markdown(f"**{breaking_tag}[{tw.get('source', '@?').replace('Twitter/@', '')}]({tw.get('url', '#')})**")
+                                st.caption(f"{tw.get('title', '')[:100]}")
+                                st.divider()
+                        
+                        # RSS articles
+                        if arts:
+                            st.markdown("**📰 RSS Articles**")
+                            for art in arts[:3]:
+                                st.markdown(f"**[{art.get('source', 'Source')}]({art.get('link', '#')})** — {art.get('title', '')[:80]}...")
+                                st.caption(f"{art.get('published_ago', '')}")
+                                st.divider()
                 
                 st.divider()
 
