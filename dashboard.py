@@ -1,10 +1,8 @@
 """
 SportSignal Dashboard — Streamlit dashboard for sports prediction market signals.
 
-Sections:
-1. Signals — Sports market opportunities with edge vs RSS sentiment
-2. Markets — Live Limitless sports markets browser
-3. Journal — Track your predictions (paper trading)
+Merged view: Markets + Signals in one unified table.
+Journal: Paper trading log.
 
 Powered by Limitless Exchange API on Base blockchain.
 """
@@ -12,17 +10,19 @@ Powered by Limitless Exchange API on Base blockchain.
 import streamlit as st
 import pandas as pd
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from limitless_client import get_active_markets, get_feed_events, format_volume, parse_price, get_sport_tag
-from sports_rss_client import fetch_all_feeds, fetch_sport_feeds, filter_football_articles, filter_nba_articles
+from limitless_client import get_active_markets, format_volume, get_sport_tag
 from signal_generator import generate_signals, load_signals
-from predictions_journal import load_journal, add_prediction, get_active_predictions, get_resolved_predictions, get_journal_stats, delete_prediction, refresh_all_predictions, export_journal_csv
+from predictions_journal import (
+    load_journal, add_prediction, get_active_predictions, 
+    get_resolved_predictions, get_journal_stats, delete_prediction, 
+    refresh_all_predictions, export_journal_csv
+)
 
 # Page config
 st.set_page_config(
@@ -35,177 +35,85 @@ st.set_page_config(
 # Dark theme CSS
 st.html("""
 <style>
-    .stApp {
-        background-color: #0a0a0f;
-        color: #e8e8e8;
-    }
-    
-    [data-testid="stSidebar"] {
-        background-color: #111118;
-        border-right: 1px solid #222230;
-    }
-    
-    .sport-card {
-        background: linear-gradient(135deg, #14141f 0%, #1a1a28 100%);
-        border: 1px solid #2a2a3a;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 8px 0;
-    }
-    
-    .signal-card {
-        background: linear-gradient(135deg, #0f1a14 0%, #141f18 100%);
-        border: 1px solid #1a3a28;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 8px 0;
-    }
-    
-    .signal-card.critical {
-        border-color: #ef4444;
-        background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%);
-    }
-    
-    .signal-card.high {
-        border-color: #f97316;
-    }
-    
-    .stMetric {
-        background: #111118;
-        border-radius: 8px;
-        padding: 8px;
-    }
-    
-    div[data-testid="stMetricValue"] {
-        font-size: 1.4rem;
-    }
-    
-    .sport-badge {
-        background: #1a1a28;
-        border: 1px solid #3a3a50;
-        border-radius: 20px;
-        padding: 4px 12px;
-        font-size: 12px;
-        display: inline-block;
-    }
-    
-    .football-badge {
-        background: #1a1a2e;
-        border-color: #4a90d9;
-        color: #4a90d9;
-    }
-    
-    .basketball-badge {
-        background: #1a1a1a;
-        border-color: #f97316;
-        color: #f97316;
-    }
-    
-    div[data-testid="stDataFrame"] {
-        background: #0a0a0f;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: #111118;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 16px;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background-color: #1a1a28;
-    }
-    
-    .yes-price {
-        color: #22c55e;
-        font-weight: bold;
-    }
-    
-    .no-price {
-        color: #ef4444;
-        font-weight: bold;
-    }
-    
-    .edge-positive {
-        color: #22c55e;
-    }
-    
-    .edge-negative {
-        color: #ef4444;
-    }
+    .stApp { background-color: #0a0a0f; color: #e8e8e8; }
+    [data-testid="stSidebar"] { background-color: #111118; border-right: 1px solid #222230; }
+    .stMetric { background: #111118; border-radius: 8px; padding: 8px; }
+    div[data-testid="stMetricValue"] { font-size: 1.4rem; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    .stTabs [data-baseweb="tab"] { background-color: #111118; border-radius: 8px 8px 0 0; padding: 8px 16px; }
+    .stTabs [aria-selected="true"] { background-color: #1a1a28; }
+    .stButton > button { border-radius: 8px; }
+    .yes-price { color: #22c55e; font-weight: bold; }
+    .no-price { color: #ef4444; font-weight: bold; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 </style>
 """)
 
 # ── Session State ─────────────────────────────────────────────────────────────
-def _init_state():
-    defaults = {
-        "view_mode": "signals",
-        "sport_filter": "All",
-        "sort_markets": "Volume",
-        "search_query": "",
-        "finnhub_quotes": {},
-        "bankroll": 100.0,
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+defaults = {
+    "view_mode": "markets",
+    "sport_filter": "All",
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-_init_state()
-
-# ── Logo / Header ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# HEADER
+# ═══════════════════════════════════════════════════════════════════════════════
 st.html("""
 <div style="
     background: linear-gradient(90deg, #0a0a0f 0%, #0f0f1a 100%);
     border-bottom: 1px solid #222230;
-    padding: 16px 24px;
-    margin-bottom: 24px;
+    padding: 14px 24px;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
 ">
-    <div style="display: flex; align-items: center; gap: 16px;">
-        <div style="font-size: 32px;">⚽</div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-size: 28px;">⚽</div>
         <div>
-            <div style="font-size: 24px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
-            <div style="font-size: 12px; color: #666; margin-top: 2px;">
-                Sports prediction markets on <span style="color: #4a90d9;">Base</span> via 
-                <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9; text-decoration: none;">Limitless Exchange</a>
+            <div style="font-size: 22px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
+            <div style="font-size: 11px; color: #555; margin-top: 2px;">
+                Live markets · Edge analysis · Paper trading on <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Limitless Exchange</a>
             </div>
         </div>
     </div>
-    <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
-        display: inline-block;
-        background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 12px;
-        white-space: nowrap;
-    ">Join Limitless →</a>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <a href="https://limitless.exchange/markets/sport/all-football?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #1a1a2e; border: 1px solid #4a90d9; color: #4a90d9;
+            padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 11px; font-weight: 600;
+        ">⚽ Football</a>
+        <a href="https://limitless.exchange/markets/sport/all-basketball?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #1a1a1a; border: 1px solid #f97316; color: #f97316;
+            padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 11px; font-weight: 600;
+        ">🏀 Basketball</a>
+        <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
+            display: inline-block;
+            background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
+            color: white; padding: 6px 14px; border-radius: 8px;
+            text-decoration: none; font-weight: 600; font-size: 11px;
+        ">Trade on Limitless →</a>
+    </div>
 </div>
 """)
 
 # ── Navigation ────────────────────────────────────────────────────────────────
-nav_cols = st.columns([1, 1, 1])
-current_view = st.session_state.get("view_mode", "signals")
+nav_cols = st.columns([1, 1])
+current_view = st.session_state.get("view_mode", "markets")
 
 with nav_cols[0]:
-    if st.button("📡 Signals", type="primary" if current_view == "signals" else "secondary", use_container_width=True):
-        st.session_state["view_mode"] = "signals"
-        st.rerun()
-
-with nav_cols[1]:
-    if st.button("📊 Markets", type="primary" if current_view == "markets" else "secondary", use_container_width=True):
+    if st.button("⚽ Markets", type="primary" if current_view == "markets" else "secondary", use_container_width=True):
         st.session_state["view_mode"] = "markets"
         st.rerun()
 
-with nav_cols[2]:
+with nav_cols[1]:
     if st.button("📓 Journal", type="primary" if current_view == "journal" else "secondary", use_container_width=True):
         st.session_state["view_mode"] = "journal"
         st.rerun()
@@ -213,53 +121,16 @@ with nav_cols[2]:
 st.divider()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SIGNALS VIEW
+# MARKETS VIEW — Unified Markets + Signals table
 # ═══════════════════════════════════════════════════════════════════════════════
-if st.session_state.get("view_mode") == "signals":
+if st.session_state.get("view_mode") == "markets":
     
-    st.markdown("## 📡 Trading Signals")
-    
-    # Sport category links
-    st.html("""
-    <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
-        <a href="https://limitless.exchange/markets/sport/all-football?r=MOS8U9NKDK" target="_blank" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1a1a2e;
-            border: 1px solid #4a90d9;
-            color: #4a90d9;
-            padding: 6px 14px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 600;
-        ">⚽ Football on Limitless →</a>
-        <a href="https://limitless.exchange/markets/sport/all-basketball?r=MOS8U9NKDK" target="_blank" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1a1a1a;
-            border: 1px solid #f97316;
-            color: #f97316;
-            padding: 6px 14px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 600;
-        ">🏀 Basketball on Limitless →</a>
-    </div>
-    """)
-    
-    st.caption("Sports market opportunities — edge based on RSS sentiment vs Limitless prices")
-    
-    # Controls row
-    ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 1])
+    # ── Controls Row ──────────────────────────────────────────────────────
+    ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([1, 1, 1, 1])
     
     with ctrl1:
         sport_filter = st.selectbox(
-            "Sport",
-            options=["All", "Football", "Basketball"],
+            "Sport", ["All", "Football", "Basketball"],
             index=["All", "Football", "Basketball"].index(st.session_state.get("sport_filter", "All")),
             label_visibility="collapsed"
         )
@@ -268,342 +139,299 @@ if st.session_state.get("view_mode") == "signals":
             st.rerun()
     
     with ctrl2:
-        sort_by = st.selectbox(
-            "Sort signals by",
-            options=["Edge ↓", "Volume ↓", "Newest"],
-            index=0
-        )
+        sort_by = st.selectbox("Sort", ["Edge ↓", "Volume ↓", "YES% ↓", "YES% ↑"], index=0, label_visibility="collapsed")
     
     with ctrl3:
-        if st.button("🔄 Refresh Signals", type="primary", use_container_width=True):
-            with st.spinner("Fetching markets + RSS feeds..."):
+        min_edge = st.slider("Min Edge %", 0, 50, 0, 5, help="Hide markets below this edge", label_visibility="collapsed")
+    
+    with ctrl4:
+        if st.button("🔄 Refresh", type="primary", use_container_width=True):
+            with st.spinner("Fetching markets + signals..."):
                 sport = None if sport_filter == "All" else sport_filter
                 result = generate_signals(sport_filter=sport, min_edge=0.05)
-                st.success(f"✅ Generated {result['signals_count']} signals from {result['markets_analyzed']} markets")
+                st.success(f"✅ {result['signals_count']} signals · 🐦 {result['tweets_fetched']} tweets · 📰 {result['articles_fetched']} articles")
                 st.rerun()
     
-    # Load current signals
+    # ── Load Data ─────────────────────────────────────────────────────────
     data = load_signals()
     signals = data.get("signals", [])
+    signal_by_slug = {s.get("slug"): s for s in signals}
     
-    # Stats from last generation
-    twitter_on = data.get("twitter_enabled", False)
-    tweets_count = data.get("tweets_fetched", 0)
-    articles_count = data.get("articles_fetched", 0)
-    api_fb_count = data.get("api_football_fetched", 0)
-    
-    # Filter and sort
-    if sport_filter != "All":
-        signals = [s for s in signals if s.get("sport") == sport_filter]
-    
-    if sort_by == "Edge ↓":
-        signals.sort(key=lambda x: x.get("edge", 0), reverse=True)
-    elif sort_by == "Volume ↓":
-        pass
-    else:
-        signals.sort(key=lambda x: x.get("generated_at", ""), reverse=True)
-    
-    # Stats
-    if signals:
-        critical = sum(1 for s in signals if s.get("confidence") == "CRITICAL")
-        high = sum(1 for s in signals if s.get("confidence") == "HIGH")
-        medium = sum(1 for s in signals if s.get("confidence") == "MEDIUM")
-        
-        c1, c2, c3, c4, c5, c6 = st.columns(6)
-        with c1:
-            st.metric("Total Signals", len(signals))
-        with c2:
-            st.metric("🔴 Critical", critical)
-        with c3:
-            st.metric("🟠 High", high)
-        with c4:
-            twitter_label = f"🐦 {tweets_count}" if twitter_on else "🐦 Off"
-            st.metric("Twitter", twitter_label)
-        with c5:
-            st.metric("📰 RSS", articles_count)
-        with c6:
-            st.metric("⚽ Form", api_fb_count if api_fb_count else 0)
-    
-    # Twitter warning if off
-    if not twitter_on:
-        st.warning("⚠️ Twitter is off — add `.twitter_cookies.env` with `AUTH_TOKEN` and `CT0` to enable Twitter signals")
-    
-    # Edge explanation
-    st.caption("""
-    **📐 Edge = Market Price vs News Implied Probability**
-    | Component | Source | Weight |
-    |-----------|--------|--------|
-    | Market Price | Limitless live YES% | Base odds |
-    | News Implied | RSS sentiment + Twitter | 40% RSS / 60% Twitter |
-    | Form Adjustment | API-Football team form | ±10% max |
-    | **Edge** | Implied − Market | Where the opportunity is |
-    """)
-    
-    st.divider()
-    
-    # Display signals
-    if not signals:
-        st.info("No signals yet. Click **Refresh Signals** to generate signals from live data.")
-    else:
-        for sig in signals:
-            conf = sig.get("confidence", "LOW")
-            conf_emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "⚪"}.get(conf, "⚪")
-            
-            edge = sig.get("edge", 0)
-            edge_color = "#22c55e" if edge > 0 else "#ef4444"
-            edge_prefix = "+" if edge > 0 else ""
-            
-            yes_pct = sig.get("market_yes_pct", 50)
-            implied_pct = sig.get("news_implied_pct", 50)
-            dir_emoji = "✅" if sig.get("direction") == "YES" else "❌"
-            
-            sport_badge = f'<span class="sport-badge {"football-badge" if sig.get("sport") == "Football" else "basketball-badge"}">{sig.get("sport", "Other")}</span>'
-            
-            # Build edge breakdown
-            edge_parts = []
-            rss_sent = sig.get("rss_sentiment", {})
-            tw_sent = sig.get("twitter_sentiment")
-            api_fb = sig.get("api_football")
-            
-            if rss_sent and rss_sent.get("article_count", 0) > 0:
-                rss_imp = rss_sent.get("implied_probability", 50)
-                edge_parts.append(f"RSS: {rss_imp:.0f}%")
-            if tw_sent and tw_sent.get("tweet_count", 0) > 0:
-                tw_imp = tw_sent.get("implied_probability", 50)
-                edge_parts.append(f"🐦 {tw_imp:.0f}%")
-            if api_fb and api_fb.get("home_form"):
-                edge_parts.append(f"⚽ Form")
-            
-            edge_breakdown = " · ".join(edge_parts) if edge_parts else ""
-            
-            with st.container():
-                st.markdown(f"""
-                <div class="signal-card {'critical' if conf == 'CRITICAL' else ('high' if conf == 'HIGH' else '')}" 
-                     style="border-left: 4px solid {'#ef4444' if conf == 'CRITICAL' else ('#f97316' if conf == 'HIGH' else '#6b7280')};">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                        <div>
-                            <span style="font-size: 12px; color: #888;">{conf_emoji} {conf}</span>
-                            <span style="margin-left: 8px;">{sport_badge}</span>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 24px; font-weight: bold; color: {edge_color};">{edge_prefix}{edge}%</span>
-                            <div style="font-size: 11px; color: #666; margin-top: 2px;">EDGE</div>
-                        </div>
-                    </div>
-                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">
-                        {dir_emoji} {sig.get('market', 'Unknown')}
-                    </div>
-                    <div style="display: flex; gap: 16px; font-size: 13px; color: #aaa; margin-bottom: 8px;">
-                        <span>Market: <span class="{'yes-price' if yes_pct >= 50 else 'no-price'}">{yes_pct}% YES</span></span>
-                        <span>Implied: <span style="color: #fbbf24;">{implied_pct}%</span></span>
-                        <span>📊 {sig.get('volume', '$0')}</span>
-                    </div>
-                    <div style="font-size: 11px; color: #555; margin-bottom: 8px;">
-                        Sources: {edge_breakdown}
-                    </div>
-                        <span>🏁 {sig.get('expiration', 'N/A')}</span>
-                    </div>
-                    <div style="font-size: 12px; color: #666;">
-                        <span>🔗 <a href="https://limitless.exchange/markets/{sig.get('slug', '')}?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Trade on Limitless →</a></span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Related content: Twitter + Articles
-                tweets = sig.get("related_tweets", [])
-                arts = sig.get("related_articles", [])
-                
-                if tweets or arts:
-                    total_content = len(tweets) + len(arts)
-                    with st.expander(f"📡 Related content ({total_content} sources)"):
-                        # API-Football form data
-                        api_fb = sig.get("api_football")
-                        if api_fb and api_fb.get("home_form"):
-                            home_form = api_fb.get("home_form", "")
-                            away_form = api_fb.get("away_form", "")
-                            home_score = api_fb.get("home_form_score", 0)
-                            away_score = api_fb.get("away_form_score", 0)
-                            
-                            st.markdown(f"""
-                            **⚽ Team Form (API-Football)**
-                            - {api_fb.get("home", "Home")}: **{home_form}** ({home_score} pts)
-                            - {api_fb.get("away", "Away")}: **{away_form}** ({away_score} pts)
-                            """)
-                            st.divider()
-                        
-                        # Twitter tweets
-                        if tweets:
-                            st.markdown("**🐦 Twitter**")
-                            for tw in tweets[:5]:
-                                breaking_tag = "🔥 " if tw.get("is_breaking") else ""
-                                st.markdown(f"**{breaking_tag}[{tw.get('source', '@?').replace('Twitter/@', '')}]({tw.get('url', '#')})**")
-                                st.caption(f"{tw.get('title', '')[:100]}")
-                                st.divider()
-                        
-                        # RSS articles
-                        if arts:
-                            st.markdown("**📰 RSS Articles**")
-                            for art in arts[:3]:
-                                st.markdown(f"**[{art.get('source', 'Source')}]({art.get('link', '#')})** — {art.get('title', '')[:80]}...")
-                                st.caption(f"{art.get('published_ago', '')}")
-                                st.divider()
-                
-                st.divider()
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MARKETS VIEW
-# ═══════════════════════════════════════════════════════════════════════════════
-elif st.session_state.get("view_mode") == "markets":
-    
-    st.markdown("## 📊 Live Sports Markets")
-    
-    # Sport category links
-    st.html("""
-    <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-        <a href="https://limitless.exchange/markets/sport/all-football?r=MOS8U9NKDK" target="_blank" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1a1a2e;
-            border: 1px solid #4a90d9;
-            color: #4a90d9;
-            padding: 6px 14px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 600;
-        ">⚽ All Football Markets →</a>
-        <a href="https://limitless.exchange/markets/sport/all-basketball?r=MOS8U9NKDK" target="_blank" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1a1a1a;
-            border: 1px solid #f97316;
-            color: #f97316;
-            padding: 6px 14px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 600;
-        ">🏀 All Basketball Markets →</a>
-    </div>
-    """)
-    
-    st.caption("Browse and search prediction markets on Limitless Exchange (Base)")
-    
-    # Controls
-    ctrl1, ctrl2, ctrl3 = st.columns([2, 1, 1])
-    
-    with ctrl1:
-        search_query = st.text_input(
-            "🔍 Search markets...",
-            value=st.session_state.get("search_query", ""),
-            placeholder="e.g., Barcelona, Lakers, Champions League...",
-            label_visibility="collapsed"
-        )
-        st.session_state["search_query"] = search_query
-    
-    with ctrl2:
-        sport_filter = st.selectbox(
-            "Sport",
-            options=["All", "Football", "Basketball"],
-            index=["All", "Football", "Basketball"].index(st.session_state.get("sport_filter", "All")),
-            label_visibility="collapsed"
-        )
-        if sport_filter != st.session_state.get("sport_filter"):
-            st.session_state["sport_filter"] = sport_filter
-            st.rerun()
-    
-    with ctrl3:
-        sort_by = st.selectbox(
-            "Sort by",
-            options=["Volume", "Newest", "Ending Soon"],
-            index=["Volume", "Newest", "Ending Soon"].index(st.session_state.get("sort_markets", "Volume"))
-        )
-        st.session_state["sort_markets"] = sort_by
-    
-    # Load markets
-    sort_map = {"Volume": "high_value", "Newest": "newest", "Ending Soon": "ending_soon"}
-    sport_map = {"All": None, "Football": "Football", "Basketball": "Basketball"}
-    
-    with st.spinner("Loading markets from Limitless..."):
-        markets_data = get_active_markets(
-            limit=25,
-            sort_by=sort_map.get(sort_by, "high_value"),
-            automation_type="sports"
-        )
+    with st.spinner("Loading markets..."):
+        markets_data = get_active_markets(limit=100, sort_by="high_value", automation_type="sports")
         markets = markets_data.get("data", [])
     
-    # Filter by sport
+    # ── Enrich Markets with Signal Data ────────────────────────────────────
+    enriched = []
+    for m in markets:
+        slug = m.get("slug", "")
+        prices = m.get("prices", [0.5, 0.5])
+        try:
+            yes_pct = round(float(prices[0]) * 100, 1)
+            no_pct = round(float(prices[1]) * 100, 1)
+        except:
+            yes_pct, no_pct = 50, 50
+        
+        sig = signal_by_slug.get(slug, {})
+        
+        enriched.append({
+            "slug": slug,
+            "title": m.get("title", "Unknown"),
+            "sport": get_sport_tag(m),
+            "yes_pct": yes_pct,
+            "no_pct": no_pct,
+            "volume": m.get("volumeFormatted", "$0"),
+            "volume_raw": int(m.get("volume", "0") or "0"),
+            "expiration": m.get("expirationDate", "N/A"),
+            "tags": m.get("tags", [])[:2],
+            # Signal
+            "has_signal": bool(sig),
+            "direction": sig.get("direction"),
+            "edge": sig.get("edge", 0),
+            "implied_pct": sig.get("news_implied_pct"),
+            "confidence": sig.get("confidence", "LOW"),
+            "rss_sentiment": sig.get("rss_sentiment", {}),
+            "twitter_sentiment": sig.get("twitter_sentiment"),
+            "api_football": sig.get("api_football"),
+            "related_tweets": sig.get("related_tweets", []),
+            "related_articles": sig.get("related_articles", []),
+        })
+    
+    # ── Filter & Sort ──────────────────────────────────────────────────────
     if sport_filter != "All":
-        markets = [m for m in markets if sport_filter.lower() in " ".join(m.get("tags", []) + m.get("categories", [])).lower()]
+        enriched = [e for e in enriched if e.get("sport") == sport_filter]
     
-    # Filter by search
-    if search_query:
-        q = search_query.lower()
-        markets = [m for m in markets if q in m.get("title", "").lower() or q in m.get("description", "").lower()]
+    if min_edge > 0:
+        enriched = [e for e in enriched if e.get("edge", 0) >= min_edge]
     
-    # Stats
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Markets", len(markets))
+    if sort_by == "Edge ↓":
+        enriched.sort(key=lambda x: x.get("edge", 0), reverse=True)
+    elif sort_by == "Volume ↓":
+        enriched.sort(key=lambda x: x.get("volume_raw", 0), reverse=True)
+    elif sort_by == "YES% ↓":
+        enriched.sort(key=lambda x: x.get("yes_pct", 50), reverse=True)
+    else:
+        enriched.sort(key=lambda x: x.get("yes_pct", 50))
     
-    football_count = sum(1 for m in markets if "football" in " ".join(m.get("tags", []) + m.get("categories", [])).lower())
-    bball_count = sum(1 for m in markets if "basketball" in " ".join(m.get("tags", []) + m.get("categories", [])).lower())
-    with c2:
-        st.metric("⚽ Football", football_count)
-    with c3:
-        st.metric("🏀 Basketball", bball_count)
+    # ── Stats Row ─────────────────────────────────────────────────────────
+    twitter_on = data.get("twitter_enabled", False)
+    critical = sum(1 for e in enriched if e.get("confidence") == "CRITICAL")
+    high = sum(1 for e in enriched if e.get("confidence") == "HIGH")
+    medium = sum(1 for e in enriched if e.get("confidence") == "MEDIUM")
+    
+    s1, s2, s3, s4, s5, s6 = st.columns([1, 1, 1, 1, 1, 1])
+    with s1: st.metric("Markets", len(enriched))
+    with s2: st.metric("🔴 Critical", critical)
+    with s3: st.metric("🟠 High", high)
+    with s4: st.metric("🟡 Medium", medium)
+    with s5: st.metric("🐦 Twitter", f"{data.get('tweets_fetched', 0)}" if twitter_on else "Off")
+    with s6: st.metric("📰 RSS", data.get("articles_fetched", 0))
+    
+    if not twitter_on:
+        st.warning("🐦 Twitter off — signals limited to RSS only")
     
     st.divider()
     
-    # Display markets
-    if not markets:
-        st.info("No markets found. Try a different filter or search.")
+    # ── Table Header ──────────────────────────────────────────────────────
+    st.html("""
+    <div style="
+        display: grid;
+        grid-template-columns: 40px 1fr 60px 60px 70px 90px 70px 60px 70px;
+        gap: 10px;
+        padding: 8px 16px;
+        color: #555;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    ">
+        <div style="text-align:center;">Sport</div>
+        <div>Market</div>
+        <div style="text-align:right;">YES%</div>
+        <div style="text-align:right;">NO%</div>
+        <div style="text-align:center;">Edge</div>
+        <div style="text-align:center;">Direction</div>
+        <div style="text-align:center;">Conf</div>
+        <div style="text-align:center;">Sources</div>
+        <div style="text-align:right;">Volume</div>
+    </div>
+    <div style="border-bottom: 1px solid #222; margin-bottom: 8px;"></div>
+    """)
+    
+    # ── Markets Table ──────────────────────────────────────────────────────
+    if not enriched:
+        st.info("No markets match your filters. Try adjusting.")
     else:
-        for i, market in enumerate(markets[:50]):
-            slug = market.get("slug", "")
-            title = market.get("title", "Unknown")
-            prices = market.get("prices", [0.5, 0.5])
-            vol = market.get("volumeFormatted", "0")
-            exp = market.get("expirationDate", "Unknown")
-            trade_type = market.get("tradeType", "amm")
-            tags = market.get("tags", [])[:3]
+        for e in enriched:
+            slug = e.get("slug")
+            yes_pct = e.get("yes_pct", 50)
+            no_pct = e.get("no_pct", 50)
+            edge = e.get("edge", 0)
+            conf = e.get("confidence", "LOW")
+            direction = e.get("direction")
             
-            try:
-                yes_pct = round(float(prices[0]) * 100, 1)
-                no_pct = round(float(prices[1]) * 100, 1)
-            except:
-                yes_pct, no_pct = 50, 50
+            # Row styling
+            if conf == "CRITICAL":
+                bg = "rgba(239, 68, 68, 0.07)"
+                border_left = "3px solid #ef4444"
+            elif conf == "HIGH":
+                bg = "rgba(249, 115, 22, 0.05)"
+                border_left = "3px solid #f97316"
+            elif conf == "MEDIUM":
+                bg = "rgba(234, 179, 8, 0.03)"
+                border_left = "2px solid #eab308"
+            elif edge > 0:
+                bg = "rgba(34, 197, 94, 0.03)"
+                border_left = "2px solid #16a34a"
+            else:
+                bg = "transparent"
+                border_left = "2px solid #222"
             
-            # Sport badge
-            sport = get_sport_tag(market)
-            badge_class = "football-badge" if sport == "Football" else "basketball-badge"
+            # Edge display
+            if edge > 0:
+                edge_str = f"+{edge:.1f}%"
+                if edge > 20: edge_color = "#ef4444"
+                elif edge > 10: edge_color = "#f97316"
+                else: edge_color = "#eab308"
+            else:
+                edge_str = "—"
+                edge_color = "#555"
             
-            with st.container():
-                mc1, mc2, mc3, mc4 = st.columns([4, 1, 1, 1])
+            # Direction
+            if direction == "YES":
+                dir_str = "✅ YES"
+                dir_color = "#22c55e"
+            elif direction == "NO":
+                dir_str = "❌ NO"
+                dir_color = "#ef4444"
+            else:
+                dir_str = "—"
+                dir_color = "#555"
+            
+            # Conf badge
+            if conf == "CRITICAL": conf_str = "🔴 CRIT"
+            elif conf == "HIGH": conf_str = "🟠 HIGH"
+            elif conf == "MEDIUM": conf_str = "🟡 MED"
+            else: conf_str = ""
+            
+            # Sources
+            srcs = []
+            if (e.get("rss_sentiment") or {}).get("article_count", 0) > 0: srcs.append("📰")
+            if (e.get("twitter_sentiment") or {}).get("tweet_count", 0) > 0: srcs.append("🐦")
+            if e.get("api_football"): srcs.append("⚽")
+            src_str = " ".join(srcs) if srcs else ""
+            
+            # Sport icon
+            sport_icon = "⚽" if e.get("sport") == "Football" else "🏀"
+            
+            # Build row HTML
+            st.html(f"""
+            <div style="
+                background: {bg};
+                border-left: {border_left};
+                border-radius: 6px;
+                padding: 10px 16px;
+                margin-bottom: 6px;
+                display: grid;
+                grid-template-columns: 40px 1fr 60px 60px 70px 90px 70px 60px 70px;
+                gap: 10px;
+                align-items: center;
+                font-size: 13px;
+            ">
+                <div style="text-align:center; font-size: 16px;">{sport_icon}</div>
+                <div style="font-weight: 500; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {e.get('title', '')[:55]}
+                </div>
+                <div style="color: #22c55e; font-weight: 700; text-align:right;">{yes_pct:.1f}%</div>
+                <div style="color: #ef4444; font-weight: 700; text-align:right;">{no_pct:.1f}%</div>
+                <div style="color: {edge_color}; font-weight: 700; text-align:center;">{edge_str}</div>
+                <div style="color: {dir_color}; font-weight: 600; font-size: 12px; text-align:center;">{dir_str}</div>
+                <div style="color: #888; font-size: 11px; text-align:center;">{conf_str}</div>
+                <div style="color: #888; font-size: 11px; text-align:center;">{src_str}</div>
+                <div style="color: #888; font-size: 11px; text-align:right;">{e.get('volume', '$0')}</div>
+            </div>
+            """)
+            
+            # Expandable details
+            if e.get("has_signal") or e.get("related_tweets") or e.get("related_articles"):
+                has_detail = len(e.get("related_tweets", [])) + len(e.get("related_articles", [])) > 0
+                detail_label = f"📊 Details · {e.get('title', '')[:40]}... | Edge: {edge:+.1f}%"
                 
-                with mc1:
-                    st.markdown(f"**{title[:80]}**")
-                    st.caption(f"📊 ${vol} | 🏁 {exp} | 🔖 {', '.join(tags[:2])}")
-                with mc2:
-                    st.markdown(f'<span class="yes-price">{yes_pct}%</span>', unsafe_allow_html=True)
-                    st.caption("YES")
-                with mc3:
-                    st.markdown(f'<span class="no-price">{no_pct}%</span>', unsafe_allow_html=True)
-                    st.caption("NO")
-                with mc4:
-                    if st.button("📓", key=f"addj_mkt_{i}", help="Add to Journal"):
-                        url = f"https://limitless.exchange/markets/{slug}"
-                        st.session_state["prefill_url"] = url
-                        st.session_state["prefill_prob"] = yes_pct
-                        st.session_state["prefill_question"] = title
-                        st.session_state["view_mode"] = "journal"
-                        st.rerun()
-                
-                # Market link with referral
-                st.markdown(f'<span style="font-size: 11px; color: #4a90d9;">🔗 <a href="https://limitless.exchange/market/{slug}?r=MOS8U9NKDK" target="_blank">Trade on Limitless →</a></span>', unsafe_allow_html=True)
-                st.divider()
+                with st.expander(detail_label):
+                    col_left, col_right = st.columns([3, 1])
+                    
+                    with col_left:
+                        # Edge breakdown table
+                        rss_s = e.get("rss_sentiment") or {}
+                        tw_s = e.get("twitter_sentiment") or {}
+                        api_fb = e.get("api_football")
+                        
+                        st.markdown("**📐 Edge Calculation**")
+                        
+                        table_md = "| Component | Value |\n|-----------|-------|\n"
+                        table_md += f"| Market YES% (Limitless) | **{yes_pct:.1f}%** |\n"
+                        
+                        if rss_s.get("article_count", 0) > 0:
+                            table_md += f"| 📰 RSS ({rss_s.get('article_count')} articles) | **{rss_s.get('implied_probability', 50):.1f}%** |\n"
+                        
+                        if tw_s.get("tweet_count", 0) > 0:
+                            table_md += f"| 🐦 Twitter ({tw_s.get('tweet_count')} tweets) | **{tw_s.get('implied_probability', 50):.1f}%** |\n"
+                        
+                        if api_fb and api_fb.get("home_form"):
+                            table_md += f"| ⚽ Team Form | Adjusted |\n"
+                        
+                        if e.get("implied_pct"):
+                            table_md += f"| **Implied Probability** | **{e.get('implied_pct'):.1f}%** |\n"
+                        
+                        table_md += f"| **EDGE** | **+{edge:.1f}%** |\n"
+                        st.markdown(table_md)
+                        
+                        # Team form
+                        if api_fb and api_fb.get("home_form"):
+                            st.markdown(f"""
+                            **⚽ Team Form**
+                            - {api_fb.get('home', 'Home')}: `{api_fb.get('home_form', '')}` ({api_fb.get('home_form_score', 0)} pts)
+                            - {api_fb.get('away', 'Away')}: `{api_fb.get('away_form', '')}` ({api_fb.get('away_form_score', 0)} pts)
+                            """)
+                        
+                        # Tweets
+                        tweets = e.get("related_tweets", [])
+                        if tweets:
+                            st.markdown(f"**🐦 Related Tweets ({len(tweets)})**")
+                            for tw in tweets[:5]:
+                                brk = "🔥 " if tw.get("is_breaking") else ""
+                                src = tw.get("source", "@?").replace("Twitter/@", "")
+                                st.markdown(f"- {brk}[{src}]({tw.get('url', '#')}): {tw.get('title', '')[:80]}")
+                        
+                        # Articles
+                        arts = e.get("related_articles", [])
+                        if arts:
+                            st.markdown(f"**📰 Related Articles ({len(arts)})**")
+                            for art in arts[:3]:
+                                st.markdown(f"- [{art.get('source', 'Source')}]({art.get('link', '#')}): {art.get('title', '')[:80]}")
+                    
+                    with col_right:
+                        st.markdown("**📓 Journal**")
+                        if st.button("Add to Journal", key=f"addj_{slug}", use_container_width=True):
+                            st.session_state["prefill_url"] = f"https://limitless.exchange/markets/{slug}"
+                            st.session_state["prefill_prob"] = yes_pct
+                            st.session_state["prefill_question"] = e.get("title", "")
+                            st.session_state["view_mode"] = "journal"
+                            st.success("Added! Go to Journal tab.")
+                            st.rerun()
+                        
+                        st.markdown("")
+                        st.markdown("**🔗 Trade**")
+                        st.markdown(f"[Open on Limitless →](https://limitless.exchange/markets/{slug}?r=MOS8U9NKDK)")
+        
+        st.divider()
+        st.caption(
+            f"Showing {len(enriched)} markets | "
+            "Edge = Implied Probability − Market Price | "
+            "Sources: 📰 RSS · 🐦 Twitter · ⚽ API-Football | "
+            f"Last refresh: {data.get('timestamp', 'N/A')[:19] if data.get('timestamp') else 'Never'}"
+        )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # JOURNAL VIEW
@@ -611,9 +439,8 @@ elif st.session_state.get("view_mode") == "markets":
 elif st.session_state.get("view_mode") == "journal":
     
     st.markdown("## 📓 Predictions Journal")
-    st.caption("Track your sports prediction market trades — paper trading on Limitless")
+    st.caption("Track your sports prediction trades — paper trading on Limitless")
     
-    # Stats row
     stats = get_journal_stats()
     c1, c2, c3, c4, c5, c6 = st.columns([1, 1, 1, 1, 1, 1])
     with c1: st.metric("📊 Total", stats["total"])
@@ -623,7 +450,6 @@ elif st.session_state.get("view_mode") == "journal":
     with c5: st.metric("🟢 Winning", stats.get("winning", 0))
     with c6: st.metric("🔴 Losing", stats.get("losing", 0))
     
-    # Refresh button
     col_refresh, col_export = st.columns([1, 4])
     with col_refresh:
         if st.button("🔄 Refresh", type="primary"):
@@ -633,11 +459,10 @@ elif st.session_state.get("view_mode") == "journal":
     with col_export:
         csv = export_journal_csv()
         if csv:
-            st.download_button("📥 Export CSV", csv, "sport_predictions_journal.csv", "text/csv", key="csv_export")
+            st.download_button("📥 Export CSV", csv, "sport_predictions_journal.csv", "text/csv")
     
     st.divider()
     
-    # Tabs
     tab_active, tab_resolved = st.tabs(["⚡ Active", "✅ Resolved"])
     
     with tab_active:
@@ -719,60 +544,55 @@ elif st.session_state.get("view_mode") == "journal":
     st.divider()
     
     # Add form
-    with st.expander("**➕ Add Prediction**", expanded=st.session_state.get("prefill_url", "") != ""):
-        default_url = st.session_state.pop("prefill_url", "") if "prefill_url" in st.session_state else ""
-        default_prob = st.session_state.pop("prefill_prob", 50) if "prefill_prob" in st.session_state else 50
-        default_q = st.session_state.pop("prefill_question", "") if "prefill_question" in st.session_state else ""
-        
+    prefill = st.session_state.pop("prefill_url", "") if "prefill_url" in st.session_state else ""
+    prefill_prob = st.session_state.pop("prefill_prob", 50) if "prefill_prob" in st.session_state else 50
+    prefill_q = st.session_state.pop("prefill_question", "") if "prefill_question" in st.session_state else ""
+    
+    with st.expander("**➕ Add Prediction**", expanded=bool(prefill)):
         with st.form("add_pred_form", clear_on_submit=True):
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("**Market URL**")
-                url = st.text_input("URL", value=default_url, placeholder="https://limitless.exchange/markets/...", label_visibility="collapsed")
+                url = st.text_input("URL", value=prefill, placeholder="https://limitless.exchange/markets/...", label_visibility="collapsed")
                 st.markdown("**Direction**")
                 direction = st.radio("Dir", options=["YES", "NO"], index=0, horizontal=True, label_visibility="collapsed")
                 st.markdown("**Bet Amount**")
                 bet = st.number_input("Bet", min_value=0.0, max_value=10000.0, value=0.0, step=10.0, label_visibility="collapsed")
             with c2:
-                st.markdown("**Instruments (optional)**")
+                st.markdown("**Instruments**")
                 instruments = st.text_input("Instruments", placeholder="EPL, Lakers...", label_visibility="collapsed")
                 st.markdown("**Notes**")
                 notes = st.text_area("Notes", placeholder="Why this prediction?", label_visibility="collapsed", height=120)
             
             st.markdown("**Entry Probability %**")
-            entry_prob = st.slider("Entry", min_value=0.0, max_value=100.0, value=float(default_prob), step=0.5)
+            entry_prob = st.slider("Entry", min_value=0.0, max_value=100.0, value=float(prefill_prob), step=0.5)
             
             submitted = st.form_submit_button("💾 Save", type="primary")
         
         if submitted and url:
             try:
-                q = default_q or url.split("/")[-1].replace("-", " ").title()
+                q = prefill_q or url.split("/")[-1].replace("-", " ").title()
                 add_prediction(
-                    market_question=q,
-                    market_url=url,
-                    direction=direction,
-                    entry_price=entry_prob / 100,
-                    notes=notes,
+                    market_question=q, market_url=url, direction=direction,
+                    entry_price=entry_prob / 100, notes=notes,
                     instruments=[i.strip() for i in instruments.split(",") if i.strip()],
                     bet_amount=bet if bet > 0 else None
                 )
-                st.success(f"✅ Saved: **{direction}** @ {entry_prob:.1f}%")
+                st.success(f"✅ **{direction}** @ {entry_prob:.1f}%")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error: {e}")
         elif submitted and not url:
             st.warning("Enter a market URL")
 
-# Footer
+# ── Footer ──────────────────────────────────────────────────────────────────
 st.divider()
-
-# Referral banner
-st.html("""
+st.html(f"""
 <div style="
     background: linear-gradient(135deg, #0f1a2a 0%, #1a1a2e 100%);
     border: 1px solid #2a4a7a;
-    border-radius: 12px;
-    padding: 16px 24px;
+    border-radius: 10px;
+    padding: 14px 20px;
     margin: 8px 0;
     display: flex;
     align-items: center;
@@ -780,26 +600,19 @@ st.html("""
     gap: 16px;
 ">
     <div>
-        <div style="font-size: 14px; font-weight: 600; color: #e8e8e8; margin-bottom: 4px;">
-            🏆 Earn rewards when you trade on Limitless
+        <div style="font-size: 13px; font-weight: 600; color: #e8e8e8;">
+            🏆 Earn rewards — trade on Limitless Exchange
         </div>
-        <div style="font-size: 12px; color: #888;">
-            Use our referral link to sign up and start trading sports prediction markets on Base.
+        <div style="font-size: 11px; color: #666; margin-top: 2px;">
+            Sports prediction markets on Base L2 blockchain
         </div>
     </div>
-    <div>
-        <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
-            display: inline-block;
-            background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 13px;
-        ">Sign Up + Trade →</a>
-    </div>
+    <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="
+        display: inline-block;
+        background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
+        color: white; padding: 8px 16px; border-radius: 8px;
+        text-decoration: none; font-weight: 600; font-size: 12px;
+    ">Sign Up + Trade →</a>
 </div>
 """)
-
-st.caption("SportSignal — Powered by Limitless Exchange on Base L2 | Data refreshes on demand")
+st.caption("SportSignal · Powered by Limitless Exchange on Base L2")
