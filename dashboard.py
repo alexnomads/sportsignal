@@ -141,6 +141,26 @@ st.html("""
         font-size: 10px;
     }
 
+    .news-strip {
+        background: #0d0d14;
+        border-top: 1px solid #1e1e2a;
+        padding: 6px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        overflow: hidden;
+    }
+    .news-chip {
+        color: #888;
+        font-size: 10px;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+    .news-chip:hover { color: #aaa; text-decoration: underline; }
+
     @media (max-width: 600px) {
         .match-outcomes { flex-direction: column; }
         .mkt-outcome { border-right: none; border-bottom: 1px solid #1e1e2a; text-align: left; display: flex; align-items: center; gap: 8px; padding: 8px 14px; }
@@ -432,32 +452,49 @@ if st.session_state.get("view_mode") == "markets":
                 if not outcomes:
                     continue
 
-                # Use first outcome for match-level info
                 parent = outcomes[0]
                 group_title = parent.get("group_title", "")
                 sport_icon = "⚽" if parent.get("sport") == "Football" else "🏀"
-                volume = parent.get("volume", "")
-                expiration = parent.get("expiration", "")[:9]
-                # League from tags
+                volume = parent.get("volume", "$0")
+                expiration = parent.get("expiration", "N/A")
                 tags = parent.get("tags", [])
-                league_tag = next((t for t in tags if any(l in t for l in ["UCL","UEL","UECL","Premier","La Liga","Serie","Bundes","Ligue"])), tags[0] if tags else "")
-                league_icon = "🏆" if "UCL" in league_tag or "UEL" in league_tag else "⚽"
+                league_tag = next((t for t in tags if any(l in t for l in ["UCL","UEL","UECL","Premier","La Liga","Serie","Bundes","Ligue","NBA"])), tags[0] if tags else "Football")
+                league_icon = "🏆" if any(l in league_tag for l in ["UCL","UEL","UECL"]) else "🏀" if "NBA" in league_tag else "⚽"
 
-                # Sort outcomes: home, draw, away (heuristic: draw always in middle)
+                # Sort outcomes
                 def outcome_sort(o):
                     t = o.get("title","").lower()
                     if t == "draw": return 1
-                    if parent.get("group_title","").lower().startswith(t): return 0  # home first
-                    return 2  # away
+                    if parent.get("group_title","").lower().startswith(t): return 0
+                    return 2
                 outcomes_sorted = sorted(outcomes, key=outcome_sort)
 
-                # Build outcome columns HTML
+                # Collect all articles across outcomes (dedup)
+                all_articles = {}
+                for o in outcomes_sorted:
+                    for a in o.get("related_articles", []):
+                        key = a.get("title","")
+                        if key and key not in all_articles:
+                            all_articles[key] = a
+
+                # Build news strip
+                news_strip = ""
+                if all_articles:
+                    article_items = ""
+                    for a in list(all_articles.values())[:3]:
+                        src = a.get("source","RSS")
+                        ago = a.get("published_ago","")
+                        headline = a.get("title","")[:55]
+                        link = a.get("link","")
+                        article_items += f'<a class="news-chip" href="{link}" target="_blank">{src} · {ago} · {headline}…</a>'
+                    news_strip = f'<div class="news-strip">{article_items}</div>'
+
+                # Build outcome columns
                 outcome_cols = ""
                 for o in outcomes_sorted:
                     yes_pct = o.get("yes_pct", 50)
                     edge = o.get("edge", 0)
                     conf = o.get("confidence", "LOW")
-                    direction = o.get("direction", "")
                     trade_url = o.get("trade_url", f"https://limitless.exchange/markets/{o.get('slug','')}?r=MOS8U9NKDK")
                     title_short = o.get("title","")[:18]
 
@@ -474,17 +511,22 @@ if st.session_state.get("view_mode") == "markets":
                         </div>
                     """
 
-                # Match row HTML
+                # Row border color by best confidence
+                best_conf = max((o.get("confidence","LOW") for o in outcomes_sorted),
+                               key=lambda c: {"LOW":0,"MEDIUM":1,"HIGH":2,"CRITICAL":3}.get(c,0))
+                border_color = "#ef4444" if best_conf=="CRITICAL" else "#f97316" if best_conf=="HIGH" else "#2a2a3a"
+
                 st.html(f"""
-                <div class="match-row">
+                <div class="match-row" style="border-left: 3px solid {border_color};">
                     <div class="match-header">
                         <span class="match-league">{league_icon} {league_tag}</span>
-                        <span class="match-teams">{group_title[2:50]}</span>
-                        <span class="match-meta">{volume} · {expiration}</span>
+                        <span class="match-teams">{group_title[2:60]}</span>
+                        <span class="match-meta">💰 {volume} &nbsp;📅 {expiration[:9]}</span>
                     </div>
                     <div class="match-outcomes">
                         {outcome_cols}
                     </div>
+                    {news_strip}
                 </div>
                 """)
 
