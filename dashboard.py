@@ -515,7 +515,7 @@ if st.session_state.get("view_mode") == "markets":
             with st.spinner("Fetching markets + signals..."):
                 sport = None if sport_filter == "All" else sport_filter
                 result = generate_signals(sport_filter=sport, min_edge=0.05)
-                st.success(f"✅ {result['signals_count']} signals · 🐦 {result['tweets_fetched']} tweets · 📰 {result['articles_fetched']} articles")
+                st.success(f"✅ {result.get('signals_count', 0)} signals · 🐦 {result.get('tweets_fetched', 0)} tweets · 📰 {result.get('articles_fetched', 0)} articles")
                 st.rerun()
 
     # ── Load Data ─────────────────────────────────────────────────────────
