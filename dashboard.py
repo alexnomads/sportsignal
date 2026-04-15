@@ -122,7 +122,6 @@ st.html("""
     }
     /* WHY reasoning - bigger font */
     .why-row { font-size: 15px; color: #888; margin-top: 4px; line-height: 1.6; text-align: left; }
-    .why-rss { color: #f0b429; display: block; }
     .why-tw   { color: #1d9bf0; display: block; }
     .why-api  { color: #22c55e; display: block; }
     .why-imp  { color: #888; display: block; }
@@ -363,10 +362,6 @@ if st.session_state.get("view_mode") == "markets":
                     api_fb = o.get("api_football") or {}
 
                     why_lines = []
-                    if rss_s.get("article_count", 0) > 0:
-                        rss_imp = rss_s.get("implied_probability", 0)
-                        rss_n = rss_s.get("article_count", 0)
-                        why_lines.append(f'<span class="why-rss">📰 {rss_n} articles → {rss_imp:.0f}%</span>')
                     if tw_s.get("tweet_count", 0) > 0:
                         tw_imp = tw_s.get("implied_probability", 0)
                         tw_n = tw_s.get("tweet_count", 0)
