@@ -356,45 +356,6 @@ if st.session_state.get("view_mode") == "markets":
                     direction = o.get("direction", "")
                     dir_color = "#22c55e" if direction == "YES" else "#ef4444" if direction == "NO" else "#888"
 
-                    # WHY reasoning - expanded with more detail
-                    rss_s = o.get("rss_sentiment") or {}
-                    tw_s = o.get("twitter_sentiment") or {}
-                    api_fb = o.get("api_football") or {}
-
-                    why_lines = []
-                    if tw_s.get("tweet_count", 0) > 0:
-                        tw_imp = tw_s.get("implied_probability", 0)
-                        tw_n = tw_s.get("tweet_count", 0)
-                        transfers = tw_s.get("transfer_signals", 0)
-                        injuries = tw_s.get("injury_signals", 0)
-                        tags_list = []
-                        if transfers: tags_list.append("transfer")
-                        if injuries: tags_list.append("injury")
-                        tag_str = f" [{', '.join(tags_list)}]" if tags_list else ""
-                        why_lines.append(f'<span class="why-tw">🐦 {tw_n} tweets → {tw_imp:.0f}%{tag_str}</span>')
-                    if api_fb.get("api_implied") is not None:
-                        api_imp = api_fb.get("api_implied", 0)
-                        api_conf = api_fb.get("api_confidence", "LOW")
-                        pred_advice = api_fb.get("predictions", {}).get("advice") or ""
-                        h2h = api_fb.get("h2h_avg_goals")
-                        home_form = api_fb.get("home_form", "") or ""
-                        away_form = api_fb.get("away_form", "") or ""
-                        why_lines.append(f'<span class="why-api">⚽ API-FB {api_imp:.0f}% ({api_conf})</span>')
-                        if pred_advice:
-                            why_lines.append(f'<div class="why-detail">💡 {pred_advice}</div>')
-                        if h2h:
-                            why_lines.append(f'<div class="why-detail">📊 H2H avg goals: {h2h:.1f}</div>')
-                        if home_form and away_form:
-                            why_lines.append(f'<div class="why-detail">📈 Form: {home_form[:5]} vs {away_form[:5]}</div>')
-                    if api_fb.get("pred_home_win") is not None:
-                        home_win = api_fb.get("pred_home_win", 0)
-                        draw_p = api_fb.get("pred_draw", 0)
-                        away_win = api_fb.get("pred_away_win", 0)
-                        if home_win > 0:
-                            why_lines.append(f'<div class="why-detail">🎯 Pred: {home_win:.0f}% / {draw_p:.0f}% / {away_win:.0f}% (H/D/A)</div>')
-
-                    why_html = '<div class="why-row">' + '<br>'.join(why_lines) + '</div>' if why_lines else '<div class="why-row why-none">No signals detected</div>'
-
                     conf_str = "🔴" if conf == "CRITICAL" else "🟠" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else ""
                     outcome_cols += f"""
                         <div class="mkt-outcome">
@@ -402,7 +363,6 @@ if st.session_state.get("view_mode") == "markets":
                             <div class="mkt-outcome-pct">{yes_pct:.0f}%</div>
                             <div class="mkt-outcome-edge" style="color:{edge_color};">+{edge:.0f}%</div>
                             <div class="mkt-outcome-dir" style="color:{dir_color};">{conf_str} {direction or '—'}</div>
-                            {why_html}
                             <a class="mkt-outcome-btn" href="{trade_url}" target="_blank">Trade →</a>
                         </div>
                     """
