@@ -78,19 +78,19 @@ st.html("""
     .mkt-card.high     { border-left: 3px solid #f97316; }
     .mkt-card.medium   { border-left: 2px solid #eab308; }
     .mkt-card.default  { border-left: 2px solid #2a2a3a; }
-    .mkt-title { flex: 1 1 100%; font-weight: 600; color: #e8e8e8; font-size: 13px; line-height: 1.3; }
+    .mkt-title { flex: 1 1 100%; font-weight: 600; color: #e8e8e8; font-size: 16px; line-height: 1.3; }
     .mkt-sport { font-size: 16px; flex: 0 0 auto; }
     .mkt-yes   { color: #22c55e; font-weight: 800; font-size: 15px; flex: 0 0 auto; }
     .mkt-no    { color: #ef4444; font-weight: 700; font-size: 14px; flex: 0 0 auto; }
     .mkt-edge  { font-weight: 800; font-size: 14px; flex: 0 0 auto; }
     .mkt-dir   { font-weight: 700; font-size: 12px; flex: 0 0 auto; }
-    .mkt-conf  { font-size: 10px; flex: 0 0 auto; color: #888; }
+    .mkt-conf  { font-size: 13px; flex: 0 0 auto; color: #888; }
     .mkt-sources { font-size: 10px; flex: 0 0 auto; color: #666; }
     .mkt-vol   { font-size: 10px; flex: 0 0 auto; color: #666; }
     .mkt-trade a {
         background: linear-gradient(135deg, #4a90d9 0%, #6ab0ff 100%);
         color: white; padding: 5px 10px; border-radius: 6px;
-        text-decoration: none; font-weight: 700; font-size: 11px;
+        text-decoration: none; font-weight: 700; font-size: 14px;
         flex: 0 0 auto;
     }
 
@@ -109,13 +109,23 @@ st.html("""
         padding: 8px 14px;
         background: #14141c;
         border-bottom: 1px solid #1e1e2a;
-        font-size: 11px;
+        font-size: 14px;
         flex-wrap: wrap;
     }
     .match-league { color: #f97316; font-weight: 700; white-space: nowrap; }
     .match-teams { color: #ccc; font-weight: 600; flex: 1; }
     .match-meta { color: #555; font-size: 10px; white-space: nowrap; }
     .match-outcomes {
+    /* WHY reasoning */
+    .why-row { font-size: 12px; color: #666; margin-top: 3px; line-height: 1.6; text-align: left; }
+    .why-rss { color: #f0b429; display: block; }
+    .why-tw   { color: #1d9bf0; display: block; }
+    .why-api  { color: #22c55e; display: block; }
+    .why-imp  { color: #888; display: block; }
+    .why-none { color: #444; font-style: italic; }
+    .mkt-outcome-dir { font-size: 12px; font-weight: 700; }
+    .mkt-outcome { min-height: 80px; }
+
         display: flex;
     }
     .mkt-outcome {
@@ -125,10 +135,10 @@ st.html("""
         border-right: 1px solid #1e1e2a;
     }
     .mkt-outcome:last-child { border-right: none; }
-    .mkt-outcome-team { color: #aaa; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-    .mkt-outcome-pct { color: #22c55e; font-size: 18px; font-weight: 900; }
-    .mkt-outcome-edge { font-size: 12px; font-weight: 700; margin-top: 2px; }
-    .mkt-outcome-conf { font-size: 11px; margin-top: 2px; }
+    .mkt-outcome-team { color: #aaa; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .mkt-outcome-pct { color: #22c55e; font-size: 21px; font-weight: 900; }
+    .mkt-outcome-edge { font-size: 15px; font-weight: 700; margin-top: 2px; }
+    .mkt-outcome-conf { font-size: 14px; margin-top: 2px; }
     .mkt-outcome-btn {
         display: inline-block;
         margin-top: 6px;
@@ -433,7 +443,7 @@ st.html("""
     <div style="display: flex; align-items: center; gap: 14px;">
         <div style="font-size: 28px;">⚽</div>
         <div>
-            <div style="font-size: 22px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
+            <div style="font-size: 25px; font-weight: 700; color: #e8e8e8;">SportSignal</div>
             <div style="font-size: 11px; color: #555; margin-top: 2px;">
                 Live markets · Edge analysis · Paper trading on <a href="https://limitless.exchange/?r=MOS8U9NKDK" target="_blank" style="color: #4a90d9;">Limitless Exchange</a>
             </div>
@@ -613,51 +623,6 @@ if st.session_state.get("view_mode") == "markets":
     else:
         enriched.sort(key=lambda x: x.get("yes_pct", 50))
 
-    # ── Stats Row ─────────────────────────────────────────────────────────
-    twitter_on = data.get("twitter_enabled", False)
-    critical = sum(1 for e in enriched if e.get("confidence") == "CRITICAL")
-    high = sum(1 for e in enriched if e.get("confidence") == "HIGH")
-    medium = sum(1 for e in enriched if e.get("confidence") == "MEDIUM")
-
-    if not twitter_on:
-        st.info("🐦 Twitter off - add `.twitter_cookies.env` with `AUTH_TOKEN` + `CT0` to enable")
-
-    # ── Compact Stats Bar ──────────────────────────────────────────────────
-    stats_tweets = data.get('tweets_fetched', 0) if twitter_on else "Off"
-    st.html(f"""
-    <div style="
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 6px;
-    ">
-        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#fff;">{len(enriched)}</div>
-            <div style="font-size:9px; color:#666;">Markets</div>
-        </div>
-        <div style="background:rgba(239,68,68,0.12); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#ef4444;">{critical}</div>
-            <div style="font-size:9px; color:#888;">🔴 Crit</div>
-        </div>
-        <div style="background:rgba(249,115,22,0.1); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#f97316;">{high}</div>
-            <div style="font-size:9px; color:#888;">🟠 High</div>
-        </div>
-        <div style="background:rgba(234,179,8,0.08); border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#eab308;">{medium}</div>
-            <div style="font-size:9px; color:#888;">🟡 Med</div>
-        </div>
-        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#fff;">{stats_tweets}</div>
-            <div style="font-size:9px; color:#666;">🐦 Tw</div>
-        </div>
-        <div style="background:#111118; border-radius:8px; padding:6px 12px; text-align:center; min-width:52px;">
-            <div style="font-size:16px; font-weight:800; color:#fff;">{data.get('articles_fetched', 0)}</div>
-            <div style="font-size:9px; color:#666;">📰 RSS</div>
-        </div>
-    </div>
-    """)
-
     # ── Markets Cards ───────────────────────────────────────────────────────
     if not enriched:
         st.info("No markets match your filters. Try adjusting.")
@@ -706,7 +671,7 @@ if st.session_state.get("view_mode") == "markets":
                         if key and key not in all_articles:
                             all_articles[key] = a
 
-                # Build outcome columns
+                # Build outcome columns (with WHY reasoning)
                 outcome_cols = ""
                 for o in outcomes_sorted:
                     yes_pct = o.get("yes_pct", 50)
@@ -716,13 +681,36 @@ if st.session_state.get("view_mode") == "markets":
                     title_short = o.get("title","")[:18]
                     edge_color = "#ef4444" if edge > 20 else "#f97316" if edge > 10 else "#eab308"
                     conf_emoji = "🔴" if conf == "CRITICAL" else "🟠" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else ""
+                    direction = o.get("direction", "")
+                    dir_color = "#22c55e" if direction == "YES" else "#ef4444" if direction == "NO" else "#888"
+
+                    # WHY reasoning
+                    rss_s = o.get("rss_sentiment") or {}
+                    tw_s = o.get("twitter_sentiment") or {}
+                    api_fb = o.get("api_football") or {}
+
+                    why_parts = []
+                    if rss_s.get("article_count", 0) > 0:
+                        rss_imp = rss_s.get("implied_probability", 0)
+                        rss_n = rss_s.get("article_count", 0)
+                        why_parts.append(f'<span class="why-rss">📰 {rss_n}art → {rss_imp:.0f}%</span>')
+                    if tw_s.get("tweet_count", 0) > 0:
+                        tw_imp = tw_s.get("implied_probability", 0)
+                        tw_n = tw_s.get("tweet_count", 0)
+                        why_parts.append(f'<span class="why-tw">🐦 {tw_n}tweet → {tw_imp:.0f}%</span>')
+                    if api_fb.get("api_implied"):
+                        api_imp = api_fb.get("api_implied", 0)
+                        why_parts.append(f'<span class="why-api">⚽{api_imp:.0f}%</span>')
+                    why_html = '<div class="why-row">' + '<br>'.join(why_parts) + '</div>' if why_parts else '<div class="why-row why-none">No signals</div>'
+
                     outcome_cols += f"""
                         <div class="mkt-outcome">
                             <div class="mkt-outcome-team">{title_short}</div>
                             <div class="mkt-outcome-pct">{yes_pct:.0f}%</div>
                             <div class="mkt-outcome-edge" style="color:{edge_color};">+{edge:.0f}%</div>
-                            <div class="mkt-outcome-conf">{conf_emoji}</div>
-                            <a class="mkt-outcome-btn" href="{trade_url}" target="_blank">YES →</a>
+                            <div class="mkt-outcome-dir" style="color:{dir_color};">{direction or '—'}</div>
+                            {why_html}
+                            <a class="mkt-outcome-btn" href="{trade_url}" target="_blank">Trade →</a>
                         </div>
                     """
 
@@ -752,10 +740,10 @@ if st.session_state.get("view_mode") == "markets":
                     </div>
                     <div class="match-col-headers">
                         <span data-tooltip="Team / Outcome">TEAM</span>
-                        <span data-tooltip="Model probability %">YES %</span>
+                        <span data-tooltip="Market odds">YES %</span>
                         <span data-tooltip="Edge vs market odds">EDGE</span>
-                        <span data-tooltip="Signal direction">DIRECTION</span>
-                        <span data-tooltip="Trade on exchange">ACTION</span>
+                        <span data-tooltip="Signal direction">DIR</span>
+                        <span data-tooltip="Why this probability">WHY THIS %</span>
                     </div>
                     <div class="match-outcomes">
                         {outcome_cols}
