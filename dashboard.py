@@ -366,11 +366,7 @@ if st.session_state.get("view_mode") == "markets":
                     if rss_s.get("article_count", 0) > 0:
                         rss_imp = rss_s.get("implied_probability", 0)
                         rss_n = rss_s.get("article_count", 0)
-                        arts = o.get("related_articles", [])
-                        art_titles = " | ".join(a.get("title","")[:35] for a in arts[:2])
                         why_lines.append(f'<span class="why-rss">📰 {rss_n} articles → {rss_imp:.0f}%</span>')
-                        if art_titles:
-                            why_lines.append(f'<div class="why-detail">"{art_titles}"</div>')
                     if tw_s.get("tweet_count", 0) > 0:
                         tw_imp = tw_s.get("implied_probability", 0)
                         tw_n = tw_s.get("tweet_count", 0)
